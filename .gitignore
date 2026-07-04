@@ -1,0 +1,25 @@
+# Dependencies
+node_modules/
+
+# Build output
+dist/
+web-ext-artifacts/
+
+# Local browser extension state
+.web-extension-id
+
+# Logs
+*.log
+npm-debug.log*
+
+# Secrets
+.env
+.env.*
+!.env.example
+.secrets/
+
+# OS/editor files
+.DS_Store
+.idea/
+.vscode/*
+!.vscode/extensions.json

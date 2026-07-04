@@ -1,0 +1,38 @@
+{
+  "name": "patina-web-sync",
+  "version": "0.1.1",
+  "private": true,
+  "type": "module",
+  "description": "Browser extension companion for Patina local-first desktop time tracking.",
+  "scripts": {
+    "extension:chromium:check": "node --experimental-strip-types scripts/chromium-extension.ts check",
+    "extension:chromium:build": "node --experimental-strip-types scripts/chromium-extension.ts build",
+    "extension:chromium:package": "node --experimental-strip-types scripts/chromium-extension.ts package",
+    "extension:firefox:check": "node --experimental-strip-types scripts/firefox-extension.ts check",
+    "extension:firefox:build": "node --experimental-strip-types scripts/firefox-extension.ts build",
+    "extension:firefox:package": "node --experimental-strip-types scripts/firefox-extension.ts package",
+    "extension:firefox:sign": "node --experimental-strip-types scripts/firefox-extension.ts sign",
+    "check": "npm run extension:chromium:check && npm run extension:firefox:check",
+    "release:check": "npm run check && npm run extension:chromium:package && npm run extension:firefox:package"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Ceceliaee/patina-web-sync.git"
+  },
+  "keywords": [
+    "patina",
+    "browser-extension",
+    "time-tracking",
+    "local-first"
+  ],
+  "author": "SYBao",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/Ceceliaee/patina-web-sync/issues"
+  },
+  "homepage": "https://github.com/Ceceliaee/patina-web-sync#readme",
+  "devDependencies": {
+    "@types/node": "^26.0.1",
+    "web-ext": "^10.4.0"
+  }
+}
