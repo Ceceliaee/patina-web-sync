@@ -9,6 +9,9 @@ web-ext-artifacts/
 # Local browser extension state
 .web-extension-id
 
+# Local agent files
+.agents/
+
 # Logs
 *.log
 npm-debug.log*
