@@ -12,6 +12,16 @@ These instructions apply to the whole repository unless the user gives an explic
 - Patina bridge compatibility must follow `docs/web-activity-protocol.md`.
 - Treat top-level long-lived docs under `docs/` as the current source of truth.
 
+## Local Skills
+
+This repository carries a small `.agents/skills/` set tailored to Patina Web Sync:
+
+- `documentation-writer`: use for README, long-lived docs, changelog, protocol, and working/archive documentation.
+- `web-extension-maintainer`: use for manifests, background scripts, build/package scripts, GitHub Actions, AMO signing, and versioning.
+- `extension-ui-design`: use for popup/options HTML/CSS/JS and setup/status interaction changes.
+
+Do not copy Patina desktop-only skills such as Tauri or SQLite maintenance into this repository unless the project scope changes explicitly.
+
 ## Project Boundary
 
 - This repository owns the browser-side Patina Web Sync extension clients.
