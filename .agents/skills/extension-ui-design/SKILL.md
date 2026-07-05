@@ -7,6 +7,8 @@ description: Use this skill when editing Patina Web Sync popup or options HTML/C
 
 Use this skill for `popup.html`, `popup.js`, `options.html`, and `options.js` changes in `src/chromium/` or `src/firefox/`.
 
+Before making UI changes, read `docs/quiet-pro-component-guidelines.md` and keep the extension UI aligned with that lightweight Quiet Pro baseline.
+
 ## Product Context
 
 Patina Web Sync UI is a small browser extension surface. It should help the user configure a local Patina port/token and understand connection status.

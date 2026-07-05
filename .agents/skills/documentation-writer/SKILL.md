@@ -14,8 +14,10 @@ Read the current repository instructions before editing docs:
 1. `AGENTS.md`
 2. `docs/product-principles-and-scope.md`
 3. `docs/architecture.md`
-4. `docs/versioning-and-release-policy.md`
-5. `docs/web-activity-protocol.md`
+4. `docs/engineering-quality.md`
+5. `docs/quiet-pro-component-guidelines.md`
+6. `docs/versioning-and-release-policy.md`
+7. `docs/web-activity-protocol.md`
 
 Use these files as the active long-term source of truth. Do not use archived plans as the default execution basis.
 
@@ -38,6 +40,8 @@ Use top-level `docs/` for:
 
 - Product boundaries and non-goals.
 - Architecture and ownership boundaries.
+- Engineering quality and validation rules.
+- Lightweight Quiet Pro extension UI rules.
 - Versioning, packaging, AMO signing, and release policy.
 - The Patina local web activity protocol.
 - Documentation hygiene or engineering quality policy if those rules become long-lived.

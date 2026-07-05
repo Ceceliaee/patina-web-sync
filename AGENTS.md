@@ -8,6 +8,8 @@ These instructions apply to the whole repository unless the user gives an explic
 
 - Product direction and scope must follow `docs/product-principles-and-scope.md`.
 - Architecture and ownership decisions must follow `docs/architecture.md`.
+- Engineering quality decisions must follow `docs/engineering-quality.md`.
+- Extension UI work must follow `docs/quiet-pro-component-guidelines.md`.
 - Versioning, packaging, AMO signing, and release work must follow `docs/versioning-and-release-policy.md`.
 - Patina bridge compatibility must follow `docs/web-activity-protocol.md`.
 - Treat top-level long-lived docs under `docs/` as the current source of truth.

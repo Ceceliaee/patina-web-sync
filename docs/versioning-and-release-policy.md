@@ -4,7 +4,7 @@
 
 Patina Web Sync is a public GitHub repository, but it is not currently published as an npm package. Keep `package.json` set to `"private": true` unless npm publication becomes an explicit release goal.
 
-The project version should stay aligned across. `npm run check:versions` enforces this locally and in CI:
+The project version should stay aligned across these sources. `npm run check:versions` enforces this locally and in CI:
 
 - `package.json` `version`
 - `src/chromium/manifest.json` `version`

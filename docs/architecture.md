@@ -20,6 +20,8 @@ This repository must not grow a Patina data layer, remote backend, or desktop-ap
 - `store-assets/`: browser store listing assets.
 - `docs/product-principles-and-scope.md`: product boundary and scope rules.
 - `docs/architecture.md`: long-term owner and module boundary rules.
+- `docs/engineering-quality.md`: validation, privacy, release, and cross-browser quality rules.
+- `docs/quiet-pro-component-guidelines.md`: lightweight extension UI design rules.
 - `docs/versioning-and-release-policy.md`: extension versioning and release rules.
 - `docs/web-activity-protocol.md`: local protocol shared with Patina.
 

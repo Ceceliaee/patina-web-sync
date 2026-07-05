@@ -14,8 +14,9 @@ Before changing extension behavior or release logic, read:
 1. `AGENTS.md`
 2. `docs/product-principles-and-scope.md`
 3. `docs/architecture.md`
-4. `docs/versioning-and-release-policy.md`
-5. `docs/web-activity-protocol.md`
+4. `docs/engineering-quality.md`
+5. `docs/versioning-and-release-policy.md`
+6. `docs/web-activity-protocol.md`
 
 Let those files decide product scope, ownership, versioning, and protocol compatibility.
 

@@ -9,6 +9,7 @@
 - Added version consistency validation.
 - Added repository-level `AGENTS.md` collaboration instructions.
 - Added repository-local agent skills for documentation, WebExtension maintenance, and extension UI work.
+- Added engineering quality and lightweight Quiet Pro extension UI guidance.
 
 ### Changed
 

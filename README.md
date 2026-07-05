@@ -29,6 +29,8 @@ It does not read page body content, form values, passwords, screenshots, clipboa
 - `store-assets/`: store listing assets.
 - `docs/product-principles-and-scope.md`: long-term product boundary and scope rules.
 - `docs/architecture.md`: long-term browser extension architecture and ownership boundaries.
+- `docs/engineering-quality.md`: validation, privacy, release, and cross-browser quality rules.
+- `docs/quiet-pro-component-guidelines.md`: lightweight Quiet Pro rules for popup/options UI.
 - `docs/versioning-and-release-policy.md`: versioning, packaging, AMO signing, and release rules.
 - `docs/web-activity-protocol.md`: local protocol between Patina and this extension.
 
