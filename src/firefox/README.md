@@ -49,7 +49,7 @@ npm run extension:firefox:package
 The unsigned zip is generated at:
 
 ```text
-dist/extensions/firefox/patina-firefox-extension-v0.1.0.zip
+dist/extensions/firefox/patina-firefox-extension-vX.Y.Z.zip
 ```
 
 This zip is only for local development, temporary debugging, or manual investigation. It is not uploaded as the Firefox user-facing GitHub Release asset.
@@ -63,7 +63,7 @@ WEB_EXT_API_KEY=... WEB_EXT_API_SECRET=... npm run extension:firefox:sign
 The signed `.xpi` is generated at:
 
 ```text
-dist/extensions/firefox/patina-firefox-extension-v0.1.0.xpi
+dist/extensions/firefox/patina-firefox-extension-vX.Y.Z.xpi
 ```
 
 The version in the file name comes from `manifest.json`.
@@ -71,7 +71,8 @@ Formal GitHub Releases upload only the signed `.xpi`. Users install it through F
 
 ## Scope
 
-- Sends only active tab URL, title, favicon URL, incognito flag, tab/window id, browser kind, and timestamps to local Patina.
+- Sends only non-private active tab URL, title, favicon URL, protocol `incognito: false` flag, tab/window id, browser kind, and timestamps to local Patina.
+- Filters incognito/private tabs in the extension before any local Web Sync request is sent.
 - Uses one local HTTP POST when the active tab changes; Patina handles timing from its foreground app tracker.
 - Uses the active tab metadata provided by the browser for favicon information.
 - Does not read page DOM, form values, screenshots, clipboard, history database, or page content.

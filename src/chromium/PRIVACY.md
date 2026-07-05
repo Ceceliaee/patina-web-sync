@@ -1,12 +1,12 @@
 # Patina Web Sync Privacy Policy
 
-Last updated: June 17, 2026
+Last updated: July 5, 2026
 
 Patina Web Sync is a browser extension companion for the Patina desktop app. Its purpose is to sync the active webpage to the Patina app running on the same computer, so Patina can include website activity in local time records.
 
 ## Data Handled by the Extension
 
-When syncing is enabled and configured, Patina Web Sync may process the following information from the active browser tab:
+When syncing is enabled and configured, Patina Web Sync may process the following information from the non-private active browser tab:
 
 - Website address
 - Page title
@@ -16,7 +16,9 @@ When syncing is enabled and configured, Patina Web Sync may process the followin
 - Extension version
 - Sync timestamp
 - Sync event reason
-- Incognito status
+- Incognito status for non-private synced tabs (`false`)
+
+Incognito/private tabs are filtered in the extension before any local Web Sync request is sent. Their website address, title, icon, and sync payload are not sent to Patina.
 
 The extension also stores local configuration in browser extension storage:
 
@@ -31,7 +33,7 @@ Patina Web Sync uses this information only to send the active webpage record to 
 
 ## Local Transfer Only
 
-Patina Web Sync sends sync requests only to the local Patina app through local addresses such as `127.0.0.1` or `localhost`, using the configured local port.
+Patina Web Sync sends sync requests only to the local Patina app through local addresses such as `127.0.0.1` or `localhost`, using the configured local port. The extension does not send sync requests for incognito/private tabs.
 
 The extension does not send synced webpage data to the developer, to Patina cloud services, or to third-party servers.
 
@@ -65,7 +67,7 @@ Users can stop syncing by disabling Web Sync in the Patina desktop app, clearing
 
 Patina Web Sync requests only the permissions needed for its single purpose:
 
-- `tabs`: read active tab metadata such as website address, title, tab ID, window ID, and icon reference.
+- `tabs`: read active tab metadata such as website address, title, tab ID, window ID, and icon reference for non-private synced tabs, and detect when the active tab is incognito/private so it can be skipped.
 - `favicon`: read the browser's local favicon cache so Patina can display the website icon.
 - `storage`: store local connection settings, language preference, and recent sync status.
 - `alarms`: refresh active tab sync state at lightweight intervals.

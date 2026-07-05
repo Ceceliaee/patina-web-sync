@@ -32,7 +32,7 @@ Patina Web Sync is the browser companion for Patina, a local-first desktop time 
 
 The extension syncs the active webpage to the Patina desktop app running on your computer. This helps Patina complete desktop time records with website context, while keeping your activity local.
 
-Patina Web Sync sends only the active webpage's website address, page title, and website icon to your local Patina app. It connects only to local addresses such as `127.0.0.1` or `localhost`.
+Patina Web Sync sends only the non-private active webpage's website address, page title, and website icon to your local Patina app. Incognito/private tabs are filtered in the extension before any local sync request is sent. It connects only to local addresses such as `127.0.0.1` or `localhost`.
 
 It does not read page content, form values, passwords, screenshots, clipboard contents, cookies, download history, or the browser history database.
 
@@ -45,6 +45,7 @@ Key features:
 - Use a local port and token for pairing with Patina.
 - Show whether the current page has synced.
 - Support regular website pages using `http` and `https`.
+- Skip incognito/private tabs before sending any local sync request.
 
 ## Privacy Practices
 
@@ -58,7 +59,7 @@ No remote code is used.
 
 Data disclosure:
 
-Disclose web browsing activity because the extension handles the active webpage's website address, title, and website icon. The extension does not read page body content, form values, passwords, screenshots, clipboard contents, cookies, download history, or the browser history database.
+Disclose web browsing activity because the extension handles the non-private active webpage's website address, title, and website icon. Incognito/private tabs are skipped before any local sync request is sent. The extension does not read page body content, form values, passwords, screenshots, clipboard contents, cookies, download history, or the browser history database.
 
 Privacy policy URL:
 
@@ -70,7 +71,7 @@ https://github.com/Ceceliaee/patina-web-sync/blob/main/src/chromium/PRIVACY.md
 
 `tabs`:
 
-Used to read the active tab's website address, title, icon reference, tab ID, and window ID so the active webpage can be synced to local Patina.
+Used to read the active tab's website address, title, icon reference, tab ID, and window ID so non-private active webpages can be synced to local Patina, and to detect incognito/private tabs so they can be skipped.
 
 `favicon`:
 
@@ -126,9 +127,13 @@ Suggested screenshots:
 5. Open the extension popup and choose Sync current page.
 6. Confirm that the popup shows the synced state.
 7. Confirm that Patina records the current website activity locally.
+8. Open an incognito window with extension access enabled, then open a regular `https` webpage.
+9. Confirm that the popup says the private window is not synced and does not show that page's title or domain.
+10. Confirm that Patina does not receive a Web Sync record for the incognito page.
 
 Expected behavior:
 
 - Regular `http` and `https` pages can be synced.
+- Incognito/private tabs are not synced and are not sent to the local Patina app.
 - Browser internal pages such as `chrome://extensions` are shown as not synced.
 - No page body content, forms, screenshots, clipboard data, cookies, download history, or browser history database are read.

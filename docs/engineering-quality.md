@@ -42,17 +42,25 @@ npm run release:check
 
 - 每个目标的 `manifest_version` 保持在受支持的扩展平台版本。
 - host permissions 继续限制在 `http://127.0.0.1/*` 和 `http://localhost/*`。
+- permissions 和 host permissions 使用精确 allowlist；不得静默接受额外权限。
+- `optional_permissions` 和 `optional_host_permissions` 必须为空或缺失。
+- `content_scripts` 必须为空或缺失；该扩展不读取页面正文。
 - Content security policy 不新增远程 fetch 目标。
 - Chromium-only API 和权限留在 Chromium 目标内。
 - Firefox 保持 `browser_specific_settings.gecko.id` 为 `web-sync@patina.local`。
 - Firefox 不请求 `favicon` 等 Chromium-only 权限。
 - 两个目标都保留有效的 popup、options、icons 和 background 入口。
+- background 必须在构造 payload、解析 favicon 或发送本机 HTTP request 前跳过 incognito/private 标签页。
+- 普通 `http` / `https` payload 可以继续携带协议 v1 的 `incognito: false` 字段，以保持 Patina 接收端兼容。
+- 本机 bridge 响应必须显式满足协议成功 shape：HTTP status 成功且 JSON response body 包含 `ok: true`，才可显示为已同步。
 
 ## 隐私与数据处理
 
 不得添加读取页面正文、表单内容、密码、截图、剪贴板、cookie、下载历史或浏览器历史数据库的能力。
 
 扩展应只发送 Patina 需要的活动标签页元数据。如果未来变化需要更多数据，先记录用户收益、隐私成本、浏览器权限和 Patina 接收端兼容性，再开始实现。
+
+incognito/private 标签页属于更高隐私等级的浏览器上下文。扩展读取到 `tab.incognito === true` 后，应只记录本地同步状态，不得把该标签页的 URL、title、favicon URL 或 favicon data 发送到 Patina bridge。Patina 接收端仍应保留忽略 incognito payload 的后备逻辑，以兼容旧扩展或异常客户端。
 
 本地连接 secret 是 Patina bearer token。不要记录、提交或发送到除本机 Patina bridge 请求以外的任何地方。
 

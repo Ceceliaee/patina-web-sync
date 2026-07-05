@@ -49,7 +49,7 @@ npm run extension:chromium:package
 The uploadable zip is generated at:
 
 ```text
-dist/extensions/chromium/patina-chromium-extension-v0.1.0.zip
+dist/extensions/chromium/patina-chromium-extension-vX.Y.Z.zip
 ```
 
 The version in the file name comes from `manifest.json`.
@@ -57,7 +57,8 @@ The zip contains a versioned extension folder. Users load that extracted folder 
 
 ## Scope
 
-- Sends only active tab URL, title, favicon, incognito flag, tab/window id, browser kind, and timestamps to local Patina.
+- Sends only non-private active tab URL, title, favicon, protocol `incognito: false` flag, tab/window id, browser kind, and timestamps to local Patina.
+- Filters incognito/private tabs in the extension before any local Web Sync request is sent.
 - Uses one local HTTP POST when the active tab changes; Patina handles timing from its foreground app tracker.
 - Uses the browser's local favicon cache to turn active-tab icons into local data for icon colors.
 - Does not read page DOM, form values, screenshots, clipboard, history database, or page content.

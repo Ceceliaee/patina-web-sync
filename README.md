@@ -17,7 +17,9 @@ When configured, the extension sends only active-tab metadata needed by Patina:
 
 - webpage URL and title
 - favicon reference or local favicon data where supported
-- browser kind, tab/window id, extension version, capture time, and incognito state
+- browser kind, tab/window id, extension version, capture time, and `incognito: false` state for non-private synced tabs
+
+Incognito/private tabs are filtered in the extension before any local Web Sync request is sent.
 
 It does not read page body content, form values, passwords, screenshots, clipboard contents, cookies, download history, or the browser history database.
 

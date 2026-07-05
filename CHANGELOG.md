@@ -17,12 +17,20 @@ Release: 待定。
 
 ### Changed
 
+- Incognito/private browser tabs are now filtered in the extension before any local Web Sync request is sent.
+
 ### Fixed
+
+- Web Sync now requires the local bridge response to explicitly return `ok: true` before the popup/options state can show as synced.
 
 ### Removed
 
+- Removed the extension-local fake `enabled` storage state so Patina desktop remains the source of truth for whether Web Sync is enabled.
+
 ### Internal
 
+- Extension validation now enforces exact permissions, exact local host permissions, empty optional permissions, empty content scripts, private-tab filtering, and explicit `ok: true` bridge success handling.
+- Target README artifact examples now use version placeholders instead of stale `v0.1.0` file names.
 - 发布流程新增版本一致性校验，并在目标 GitHub Release 已存在时跳过发布，避免重复签名同一个 Firefox manifest version。
 
 ## [0.1.1] - 2026-07-05

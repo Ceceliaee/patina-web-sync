@@ -49,7 +49,7 @@ npm run extension:firefox:package
 未签名 zip 会生成在：
 
 ```text
-dist/extensions/firefox/patina-firefox-extension-v0.1.0.zip
+dist/extensions/firefox/patina-firefox-extension-vX.Y.Z.zip
 ```
 
 这个 zip 只用于本地开发、临时调试或人工排查，不作为 GitHub Release 的 Firefox 用户安装附件。
@@ -63,7 +63,7 @@ WEB_EXT_API_KEY=... WEB_EXT_API_SECRET=... npm run extension:firefox:sign
 签名 `.xpi` 会生成在：
 
 ```text
-dist/extensions/firefox/patina-firefox-extension-v0.1.0.xpi
+dist/extensions/firefox/patina-firefox-extension-vX.Y.Z.xpi
 ```
 
 文件名中的版本号来自 `manifest.json`。
@@ -71,7 +71,8 @@ dist/extensions/firefox/patina-firefox-extension-v0.1.0.xpi
 
 ## 范围
 
-- 只向本机 Patina 发送活动标签页的 URL、标题、favicon URL、隐身标记、标签页/窗口 id、浏览器类型和时间戳。
+- 只向本机 Patina 发送非私密活动标签页的 URL、标题、favicon URL、协议 `incognito: false` 标记、标签页/窗口 id、浏览器类型和时间戳。
+- 无痕/私密标签页会在扩展端发送本机网页同步请求之前被过滤。
 - 活动标签页变化时使用一次本地 HTTP POST；时间归属由 Patina 的前台应用追踪器处理。
 - 使用浏览器提供的活动标签页元数据记录网站图标信息。
 - 不读取页面 DOM、表单值、截图、剪贴板、浏览历史库或网页正文。
