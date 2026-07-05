@@ -1,61 +1,61 @@
-# Architecture
+# 架构
 
-## Ownership
+## 所有权
 
-Patina Web Sync owns the browser-side client. Patina owns the receiver, validation, storage, and desktop presentation.
+Patina Web Sync 拥有浏览器侧客户端。Patina 拥有接收端、校验、存储和桌面端展示。
 
-The boundary is intentionally simple:
+边界刻意保持简单：
 
 ```text
 Browser extension -> local HTTP POST -> Patina desktop app -> local Patina data model
 ```
 
-This repository must not grow a Patina data layer, remote backend, or desktop-app runtime. It should remain a browser extension project with a small amount of build and release automation.
+本仓库不应长出 Patina 数据层、远程后端或桌面应用运行时。它应该保持为一个浏览器扩展项目，只带少量构建和发布自动化。
 
-## Repository Layout
+## 仓库结构
 
-- `src/chromium/`: Chromium-family Manifest V3 extension target.
-- `src/firefox/`: Firefox WebExtension target.
-- `scripts/`: validation, build, package, and signing helpers.
-- `store-assets/`: browser store listing assets.
-- `docs/product-principles-and-scope.md`: product boundary and scope rules.
-- `docs/architecture.md`: long-term owner and module boundary rules.
-- `docs/engineering-quality.md`: validation, privacy, release, and cross-browser quality rules.
-- `docs/quiet-pro-component-guidelines.md`: lightweight extension UI design rules.
-- `docs/versioning-and-release-policy.md`: extension versioning and release rules.
-- `docs/web-activity-protocol.md`: local protocol shared with Patina.
+- `src/chromium/`：Chromium 系 Manifest V3 扩展目标。
+- `src/firefox/`：Firefox WebExtension 目标。
+- `scripts/`：验证、构建、打包和签名辅助脚本。
+- `store-assets/`：浏览器商店 listing 素材。
+- `docs/product-principles-and-scope.md`：产品边界和范围规则。
+- `docs/architecture.md`：长期所有权和模块边界规则。
+- `docs/engineering-quality.md`：验证、隐私、发布和跨浏览器质量规则。
+- `docs/quiet-pro-component-guidelines.md`：轻量扩展 UI 设计规则。
+- `docs/versioning-and-release-policy.md`：扩展版本和发布规则。
+- `docs/web-activity-protocol.md`：与 Patina 共享的本机协议。
 
-## Runtime Flow
+## 运行流程
 
-1. The background script observes browser events such as install, startup, tab activation, tab update, window focus, and periodic alarms.
-2. The extension reads the active trackable tab from the last focused browser window.
-3. The extension builds a protocol payload with active-tab metadata, extension version, browser kind, client id, tab/window ids, capture time, and event reason.
-4. The extension sends the payload to `http://127.0.0.1:<port>/web-activity` with `Authorization: Bearer <token>`.
-5. Patina accepts, rejects, stores, sanitizes, and displays the record according to Patina-owned rules.
-6. The extension stores only lightweight local connection status so the popup/options UI can explain what happened.
+1. background script 监听 install、startup、tab activation、tab update、window focus 和周期性 alarm 等浏览器事件。
+2. 扩展从最后聚焦的浏览器窗口读取当前可记录的活动标签页。
+3. 扩展构造协议 payload，包含活动标签页元数据、扩展版本、浏览器类型、client id、tab/window id、采集时间和事件原因。
+4. 扩展使用 `Authorization: Bearer <token>` 向 `http://127.0.0.1:<port>/web-activity` 发送 payload。
+5. Patina 按 Patina 拥有的规则接收、拒绝、存储、清洗和展示记录。
+6. 扩展只保存轻量的本地连接状态，供 popup/options UI 解释当前状态。
 
-## Browser Target Rules
+## 浏览器目标规则
 
-Chromium and Firefox targets should provide the same user behavior unless a browser API difference requires a target-specific implementation.
+Chromium 和 Firefox 目标应提供一致的用户行为，除非浏览器 API 差异需要目标专属实现。
 
-Chromium-specific behavior may use Chromium-only APIs such as the `favicon` permission and cached favicon URL lookup.
+Chromium 专属行为可以使用 Chromium-only API，例如 `favicon` 权限和本地 favicon cache 查询。
 
-Firefox-specific behavior must preserve the stable `browser_specific_settings.gecko.id` value. The Firefox manifest version must never be rolled back for the same Gecko id once an AMO-signed version has been produced.
+Firefox 专属行为必须保留稳定的 `browser_specific_settings.gecko.id`。同一个 Gecko id 一旦产出过 AMO 签名版本，Firefox manifest version 不得回退。
 
-## Protocol Boundary
+## 协议边界
 
-The protocol contract lives in [`web-activity-protocol.md`](./web-activity-protocol.md).
+协议契约位于 [`web-activity-protocol.md`](./web-activity-protocol.md)。
 
-Patina Web Sync may add client-side fields only after confirming Patina can safely ignore or accept them. Patina should accept older client payloads before this extension starts requiring a newer Patina version.
+Patina Web Sync 只有在确认 Patina 能安全忽略或接收新字段后，才能添加客户端字段。扩展开始依赖新版 Patina 前，Patina 应先能接收旧客户端和新客户端 payload。
 
-Do not introduce same-day lockstep release requirements between Patina and Patina Web Sync for ordinary desktop updates.
+普通桌面更新不应引入 Patina 和 Patina Web Sync 同日锁步发布要求。
 
-## Privacy And Security Boundary
+## 隐私与安全边界
 
-The extension should continue to avoid content scripts unless there is a clear, reviewed reason to add them.
+扩展应继续避免 content scripts，除非有明确且经过审视的理由。
 
-The extension must not read page body content, form values, passwords, screenshots, clipboard contents, cookies, download history, or browser history databases.
+扩展不得读取页面正文、表单内容、密码、截图、剪贴板、cookie、下载历史或浏览器历史数据库。
 
-Connection secrets are local Patina bearer tokens entered by the user. The extension should store them only in browser extension local storage and use them only for local Patina requests.
+连接凭据是用户输入的本机 Patina bearer token。扩展只应把它保存在浏览器扩展本地存储中，并且只用于本机 Patina 请求。
 
-Network permissions should remain limited to `http://127.0.0.1/*` and `http://localhost/*` unless the product boundary is explicitly changed.
+网络权限应保持限制在 `http://127.0.0.1/*` 和 `http://localhost/*`，除非产品边界被明确改变。

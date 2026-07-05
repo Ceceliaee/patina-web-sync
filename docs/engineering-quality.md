@@ -1,92 +1,92 @@
-# Engineering Quality
+# 工程质量
 
-## Purpose
+## 目的
 
-This document defines the quality bar for Patina Web Sync as a small browser extension companion project.
+本文定义 Patina Web Sync 作为小型浏览器扩展伴生项目的质量门槛。
 
-Quality here means preserving the privacy boundary, keeping browser targets predictable, making release failures obvious before signing, and avoiding unnecessary project weight.
+这里的质量指：保护隐私边界、保持浏览器目标可预期、让发布失败在签名前暴露，并避免不必要的项目重量。
 
-## Core Quality Principles
+## 核心质量原则
 
-- Keep the extension local-only and privacy-preserving by default.
-- Prefer explicit validation scripts over reviewer memory for stable invariants.
-- Keep Chromium and Firefox behavior aligned unless browser APIs force divergence.
-- Keep release steps repeatable, version-aware, and safe around Firefox AMO signing.
-- Keep the repository small. Add abstraction only when it removes real duplication or encodes a stable boundary.
+- 默认保持本机-only 和隐私保护。
+- 对稳定不变量，优先用显式验证脚本，而不是依赖 reviewer 记忆。
+- 除非浏览器 API 强制分化，保持 Chromium 和 Firefox 行为一致。
+- 让发布步骤可重复、版本感知，并在 Firefox AMO 签名周围保持安全。
+- 保持仓库小而清楚。只有在减少真实重复或编码稳定边界时才增加抽象。
 
-## Required Validation
+## 必要验证
 
-Default validation before commits:
+提交前默认验证：
 
 ```bash
 npm run check
 ```
 
-This must include:
+该命令必须覆盖：
 
-- version consistency across `package.json` and both manifests
-- Chromium extension shape and permission checks
-- Firefox extension shape, permission, and Gecko id checks
+- `package.json` 和两个 manifest 的版本一致性
+- Chromium 扩展结构和权限检查
+- Firefox 扩展结构、权限和 Gecko id 检查
 
-For changes touching manifests, package scripts, release workflow, signing, packaging, or asset naming, also run:
+如果改动触及 manifests、package scripts、release workflow、签名、打包或 asset 命名，还要运行：
 
 ```bash
 npm run release:check
 ```
 
-`release:check` may produce local package artifacts. It must not perform AMO signing.
+`release:check` 可以生成本地 package artifact，但不得执行 AMO 签名。
 
-## Browser Extension Invariants
+## 浏览器扩展不变量
 
-Validation and review should protect these invariants:
+验证和 review 应保护以下不变量：
 
-- `manifest_version` stays on the supported extension platform version for each target.
-- Host permissions remain limited to `http://127.0.0.1/*` and `http://localhost/*`.
-- Content security policy does not add remote fetch targets.
-- Chromium-only APIs and permissions stay in the Chromium target.
-- Firefox keeps `browser_specific_settings.gecko.id` set to `web-sync@patina.local`.
-- Firefox does not request Chromium-only permissions such as `favicon`.
-- Both targets keep popup, options, icons, and background entry points valid.
+- 每个目标的 `manifest_version` 保持在受支持的扩展平台版本。
+- host permissions 继续限制在 `http://127.0.0.1/*` 和 `http://localhost/*`。
+- Content security policy 不新增远程 fetch 目标。
+- Chromium-only API 和权限留在 Chromium 目标内。
+- Firefox 保持 `browser_specific_settings.gecko.id` 为 `web-sync@patina.local`。
+- Firefox 不请求 `favicon` 等 Chromium-only 权限。
+- 两个目标都保留有效的 popup、options、icons 和 background 入口。
 
-## Privacy And Data Handling
+## 隐私与数据处理
 
-Do not add capabilities that read page body content, form values, passwords, screenshots, clipboard contents, cookies, download history, or browser history databases.
+不得添加读取页面正文、表单内容、密码、截图、剪贴板、cookie、下载历史或浏览器历史数据库的能力。
 
-The extension should send only active-tab metadata needed by Patina. If a future change needs more data, document the user benefit, privacy cost, browser permissions, and Patina receiver compatibility before implementing it.
+扩展应只发送 Patina 需要的活动标签页元数据。如果未来变化需要更多数据，先记录用户收益、隐私成本、浏览器权限和 Patina 接收端兼容性，再开始实现。
 
-Local connection secrets are Patina bearer tokens. Do not log them, commit them, or send them anywhere except the local Patina bridge request.
+本地连接 secret 是 Patina bearer token。不要记录、提交或发送到除本机 Patina bridge 请求以外的任何地方。
 
-## Cross-Browser Parity
+## 跨浏览器一致性
 
-A change should normally keep Chromium and Firefox user behavior aligned.
+改动通常应保持 Chromium 和 Firefox 用户行为一致。
 
-When behavior must differ:
+当行为必须分化时：
 
-- document the browser API or store-policy reason in the implementation or release notes
-- keep the shared protocol payload compatible
-- keep user-facing setup copy consistent across browser targets
-- update validation scripts if the difference becomes a stable invariant
+- 在实现或 release notes 中记录浏览器 API 或商店政策原因
+- 保持共享协议 payload 兼容
+- 保持面向用户的设置说明在浏览器目标之间一致
+- 如果该差异成为稳定不变量，更新验证脚本
 
-## Release Quality
+## 发布质量
 
-Release changes must protect against signing or publishing the wrong version:
+发布改动必须防止签名或发布错误版本：
 
-- `npm run check:versions` must pass before packaging or publishing.
-- Git tag, package version, Chromium manifest version, Firefox manifest version, release title, and asset names must agree.
-- Do not re-sign the same Firefox manifest version after AMO has accepted it.
-- Do not publish unsigned Firefox zip files as user-facing release assets.
-- Keep generated `dist/`, `dist-release/`, and `web-ext-artifacts/` files out of git.
+- 打包或发布前，`npm run check:versions` 必须通过。
+- Git tag、package version、Chromium manifest version、Firefox manifest version、release title 和 asset 名称必须一致。
+- AMO 已接受某个 Firefox manifest version 后，不要再次签同一个版本。
+- 不要把未签名 Firefox zip 作为面向用户的 release asset 发布。
+- 不要把 `dist/`、`dist-release/` 和 `web-ext-artifacts/` 生成物提交进 git。
 
-## Code Change Style
+## 代码变更风格
 
-Prefer direct, readable JavaScript and TypeScript. The repository is intentionally compact, so avoid framework migrations, bundlers, or shared infrastructure unless they solve a concrete maintenance problem.
+优先使用直接、可读的 JavaScript 和 TypeScript。这个仓库刻意保持紧凑，因此不要引入框架迁移、bundler 或共享基础设施，除非它们解决具体维护问题。
 
-For scripts, make failure messages specific enough that a future maintainer knows which file or invariant broke.
+脚本的失败信息要足够具体，让未来维护者知道哪个文件或不变量坏了。
 
-For UI files, keep inline behavior simple and avoid remote dependencies. Extension pages should work under the current content security policy.
+UI 文件保持行为简单，不引入远程依赖。扩展页面应能在当前 content security policy 下工作。
 
-## Documentation Quality
+## 文档质量
 
-When a quality rule becomes durable, update the relevant long-lived document instead of leaving it only in a temporary plan or commit message.
+当某条质量规则变成长期规则时，更新相关长期文档，而不是只留在临时计划或 commit message 里。
 
-Use `AGENTS.md` for repository-wide collaboration rules. Use this document for engineering quality rules that should guide implementation and review.
+`AGENTS.md` 用于仓库级协作规则。本文用于指导实现和 review 的工程质量规则。

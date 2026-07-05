@@ -1,72 +1,72 @@
-# Versioning And Release Policy
+# 版本与发布策略
 
-## Version Sources
+## 版本来源
 
-Patina Web Sync is a public GitHub repository, but it is not currently published as an npm package. Keep `package.json` set to `"private": true` unless npm publication becomes an explicit release goal.
+Patina Web Sync 是公开 GitHub 仓库，但目前不发布为 npm 包。除非 npm 发布成为明确目标，否则保持 `package.json` 的 `"private": true`。
 
-The project version should stay aligned across these sources. `npm run check:versions` enforces this locally and in CI:
+项目版本应在以下来源中保持一致。`npm run check:versions` 会在本地和 CI 中强制检查：
 
-- `package.json` `version`
-- `src/chromium/manifest.json` `version`
-- `src/firefox/manifest.json` `version`
+- `package.json` 的 `version`
+- `src/chromium/manifest.json` 的 `version`
+- `src/firefox/manifest.json` 的 `version`
 - Git tag `vX.Y.Z`
-- GitHub Release title `Patina Web Sync vX.Y.Z`
+- GitHub Release 标题 `Patina Web Sync vX.Y.Z`
 
-The initial standalone version is `0.1.1`, matching the current Firefox extension version and moving Chromium forward to the same version. Browser extension versions use numeric `X.Y.Z` or `X.Y.Z.N` format.
+独立仓库初始版本为 `0.1.1`，它匹配当前 Firefox 扩展版本，并把 Chromium 提升到同一版本。浏览器扩展版本使用数字 `X.Y.Z` 或 `X.Y.Z.N` 格式。
 
-## Browser Version Rules
+## 浏览器版本规则
 
-Chromium and Firefox manifest versions should normally move together. If a browser-specific emergency requires a target-only release, document the reason in `CHANGELOG.md` before tagging.
+Chromium 和 Firefox manifest version 通常应一起前进。如果浏览器专属紧急情况要求只发布某个目标，打 tag 前先在 `CHANGELOG.md` 中记录原因。
 
-Firefox versions require extra care. Once a version has been signed for the stable Gecko id `web-sync@patina.local`, do not roll that manifest version backward.
+Firefox 版本需要额外谨慎。同一个稳定 Gecko id `web-sync@patina.local` 一旦签名过某个版本，不要回退该 manifest version。
 
-Do not run AMO signing just to verify a migration or routine documentation change. Run `npm run extension:firefox:sign` only for a real Firefox release after confirming the target version moves forward.
+不要为了验证迁移或普通文档变更而运行 AMO 签名。只有在准备真实 Firefox 发布，并确认目标版本向前移动后，才运行 `npm run extension:firefox:sign`。
 
-## Validation
+## 验证
 
-Default validation is:
+默认验证：
 
 ```bash
 npm run check
 ```
 
-Before preparing release assets, also run:
+准备 release asset 前，还要运行：
 
 ```bash
 npm run release:check
 ```
 
-`npm run release:check` creates local Chromium and unsigned Firefox development packages. It does not perform AMO signing.
+`npm run release:check` 会生成本地 Chromium 包和未签名 Firefox development 包。它不会执行 AMO 签名。
 
-## Release Assets
+## Release 附件
 
-Chromium release asset:
+Chromium release asset：
 
 ```text
 patina-chromium-extension-vX.Y.Z.zip
 ```
 
-Firefox release asset:
+Firefox release asset：
 
 ```text
 patina-firefox-extension-vX.Y.Z.xpi
 ```
 
-The Firefox `.xpi` must be produced by AMO signing for formal releases. Unsigned Firefox zip files are development artifacts only and should not be attached as user-facing release assets.
+正式 release 中的 Firefox `.xpi` 必须由 AMO 签名产出。未签名 Firefox zip 只是开发 artifact，不应作为面向用户的 release asset 附加。
 
-## Release Flow
+## 发布流程
 
-1. Update `CHANGELOG.md` for the release.
-2. Ensure `package.json` and both browser manifests use the same target version.
-3. Run `npm run check`.
-4. Run `npm run release:check` for local package verification.
-5. Confirm AMO credentials are configured in the GitHub repository secrets when publishing Firefox assets.
-6. Commit the release preparation changes.
-7. Push tag `vX.Y.Z` or run the release workflow for an existing version tag.
-8. Let GitHub Actions validate version consistency, package Chromium, sign Firefox, collect assets, and publish the GitHub Release. If `vX.Y.Z` already exists, the workflow skips publishing instead of attempting to re-sign the same Firefox manifest version.
+1. 更新 `CHANGELOG.md`。
+2. 确认 `package.json` 和两个浏览器 manifest 都使用目标版本。
+3. 运行 `npm run check`。
+4. 运行 `npm run release:check` 做本地打包验证。
+5. 发布 Firefox asset 前，确认 GitHub repository secrets 已配置 AMO 凭据。
+6. 提交 release preparation 变更。
+7. 推送 tag `vX.Y.Z`，或针对已有版本 tag 运行 release workflow。
+8. 让 GitHub Actions 校验版本一致性、打包 Chromium、签名 Firefox、收集 assets 并发布 GitHub Release。如果 `vX.Y.Z` 已存在，workflow 会跳过发布，避免再次签同一个 Firefox manifest version。
 
-## Relationship To Patina Releases
+## 与 Patina Release 的关系
 
-Patina desktop releases do not package or upload Patina Web Sync browser extension assets.
+Patina 桌面 release 不打包或上传 Patina Web Sync 浏览器扩展 asset。
 
-Patina README and Patina Settings may link users to this repository's release page or future browser-store listings. The extension release cadence should remain independent from the Patina desktop app unless a protocol compatibility change requires coordination.
+Patina README 和 Patina Settings 可以链接到本仓库 release 页面或未来浏览器商店入口。除非协议兼容性变化需要协调，否则扩展发布节奏应独立于 Patina 桌面应用。

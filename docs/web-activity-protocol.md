@@ -1,19 +1,19 @@
-# Patina Web Activity Protocol
+# Patina Web Activity 协议
 
-## Purpose
+## 目的
 
-This document defines the local protocol between Patina and Patina Web Sync.
+本文定义 Patina 与 Patina Web Sync 之间的本机协议。
 
-Patina owns the receiving endpoint and local data behavior. Patina Web Sync owns the browser extension clients that send active-tab metadata to the local Patina app.
+Patina 拥有接收端和本地数据行为。Patina Web Sync 拥有浏览器扩展客户端，负责把活动标签页元数据发送给本机 Patina 应用。
 
-## Boundary
+## 边界
 
-- The protocol is local-only.
-- Clients connect to `http://127.0.0.1:<port>` or `http://localhost:<port>`.
-- Authentication uses a bearer token shown by Patina Settings.
-- The protocol is not a cloud sync, account, analytics, or remote ingestion API.
+- 该协议仅用于本机通信。
+- 客户端连接到 `http://127.0.0.1:<port>` 或 `http://localhost:<port>`。
+- 鉴权使用 Patina Settings 显示的 bearer token。
+- 该协议不是云同步、账号、分析或远程采集 API。
 
-## Endpoint
+## 接口
 
 ```http
 POST /web-activity
@@ -21,9 +21,9 @@ Authorization: Bearer <token>
 Content-Type: application/json
 ```
 
-## Request Body
+## 请求体
 
-The browser extension sends a JSON object using camelCase fields:
+浏览器扩展发送 camelCase 字段的 JSON object：
 
 ```json
 {
@@ -42,21 +42,21 @@ The browser extension sends a JSON object using camelCase fields:
 }
 ```
 
-Patina currently stores domain-level web activity by default. Full page URL is not persisted by the default sanitizer.
+Patina 当前默认保存域名级网页活动。完整页面 URL 默认不会被 sanitizer 持久化。
 
-## Ignored Inputs
+## 忽略或拒绝的输入
 
-Patina ignores or rejects records when:
+以下情况中，Patina 会忽略或拒绝记录：
 
-- the token is missing or invalid
-- Web Sync is disabled in Patina
-- the URL is missing or invalid
-- the URL scheme is not `http` or `https`
-- the browser tab is incognito/private
+- token 缺失或无效
+- Patina 中 Web Sync 已关闭
+- URL 缺失或无效
+- URL scheme 不是 `http` 或 `https`
+- 浏览器标签页处于 incognito/private 状态
 
-## Response Shape
+## 响应结构
 
-Successful response:
+成功响应：
 
 ```json
 {
@@ -67,7 +67,7 @@ Successful response:
 }
 ```
 
-Disabled response:
+关闭响应：
 
 ```json
 {
@@ -79,14 +79,14 @@ Disabled response:
 }
 ```
 
-Error responses use `ok: false`, a stable `code`, and a human-readable `message`.
+错误响应使用 `ok: false`、稳定的 `code` 和人类可读的 `message`。
 
-## Change Policy
+## 变更策略
 
-Protocol changes should be receiver-compatible first:
+协议变更应优先保证接收端兼容：
 
-1. Patina accepts the old and new client shapes.
-2. Patina Web Sync starts sending the new shape.
-3. Old compatibility is removed only after a separate compatibility decision.
+1. Patina 同时接收旧客户端和新客户端 shape。
+2. Patina Web Sync 开始发送新的 shape。
+3. 只有经过单独兼容性决策后，才移除旧兼容。
 
-Firefox AMO signing and browser store review can make extension rollout slower than Patina releases, so Patina should avoid requiring a same-day extension upgrade for ordinary desktop updates.
+Firefox AMO 签名和浏览器商店审核可能让扩展发布慢于 Patina release，因此 Patina 不应要求普通桌面更新必须同日升级扩展。

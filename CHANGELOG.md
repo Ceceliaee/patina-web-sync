@@ -13,4 +13,5 @@
 
 ### Changed
 
+- 将长期事实源文档统一改为中文，保留文件名、命令、协议字段和 asset 名称原样。
 - Aligned Chromium and Firefox extension target versions on `0.1.1`.
