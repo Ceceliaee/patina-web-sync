@@ -14,6 +14,26 @@ Patina Web Sync 是公开 GitHub 仓库，但目前不发布为 npm 包。除非
 
 独立仓库初始版本为 `0.1.1`，它匹配当前 Firefox 扩展版本，并把 Chromium 提升到同一版本。浏览器扩展版本使用数字 `X.Y.Z` 或 `X.Y.Z.N` 格式。
 
+## Changelog 规则
+
+`CHANGELOG.md` 是发布说明，不是提交清单、迁移清单或仓库维护日志。
+
+默认只记录相对上一个已发布版本的最终结果：
+
+- 用户能感知的安装、权限、协议、浏览器支持、兼容性或使用体验变化。
+- 影响发布判断、签名、打包、版本一致性或 release asset 的内部变化。
+- 已经进入正式发布结果的新增、变更、修复或移除。
+
+默认不记录：
+
+- `AGENTS.md`、本地 `.agents/skills/`、`.gitignore`、编辑器配置或个人工作区文件调整。
+- 长期文档整理、中文化、归档移动、README 索引维护等不改变扩展行为或发布资产的文档卫生变化。
+- 开发过程中出现过但最终没有进入发布结果的中间尝试、回退或一次性操作步骤。
+
+推荐分类保持为 `Added`、`Changed`、`Fixed`、`Removed`、`Internal`。其中 `Internal` 只写少量对发布理解有帮助的工程、验证或发布流程变化，不要把 commit 列表搬进 changelog。
+
+每个正式版本节应包含 `Release:` 摘要。Patina Web Sync 没有应用内更新弹窗，因此不需要复制 Patina 主仓库的 `App note:` 字段。
+
 ## 浏览器版本规则
 
 Chromium 和 Firefox manifest version 通常应一起前进。如果浏览器专属紧急情况要求只发布某个目标，打 tag 前先在 `CHANGELOG.md` 中记录原因。
