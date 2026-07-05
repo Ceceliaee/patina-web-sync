@@ -12,7 +12,8 @@
     "extension:firefox:build": "node --experimental-strip-types scripts/firefox-extension.ts build",
     "extension:firefox:package": "node --experimental-strip-types scripts/firefox-extension.ts package",
     "extension:firefox:sign": "node --experimental-strip-types scripts/firefox-extension.ts sign",
-    "check": "npm run extension:chromium:check && npm run extension:firefox:check",
+    "check:versions": "node --experimental-strip-types scripts/check-version-consistency.ts",
+    "check": "npm run check:versions && npm run extension:chromium:check && npm run extension:firefox:check",
     "release:check": "npm run check && npm run extension:chromium:package && npm run extension:firefox:package"
   },
   "repository": {

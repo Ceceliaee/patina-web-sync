@@ -3,6 +3,7 @@ node_modules/
 
 # Build output
 dist/
+dist-release/
 web-ext-artifacts/
 
 # Local browser extension state
@@ -15,7 +16,6 @@ npm-debug.log*
 # Secrets
 .env
 .env.*
-!.env.example
 .secrets/
 
 # OS/editor files

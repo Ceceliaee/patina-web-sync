@@ -4,7 +4,7 @@
 
 Patina Web Sync is a public GitHub repository, but it is not currently published as an npm package. Keep `package.json` set to `"private": true` unless npm publication becomes an explicit release goal.
 
-The project version should stay aligned across:
+The project version should stay aligned across. `npm run check:versions` enforces this locally and in CI:
 
 - `package.json` `version`
 - `src/chromium/manifest.json` `version`
@@ -12,7 +12,7 @@ The project version should stay aligned across:
 - Git tag `vX.Y.Z`
 - GitHub Release title `Patina Web Sync vX.Y.Z`
 
-The initial standalone version is `0.1.1`, matching the current Firefox extension version and moving Chromium forward to the same version.
+The initial standalone version is `0.1.1`, matching the current Firefox extension version and moving Chromium forward to the same version. Browser extension versions use numeric `X.Y.Z` or `X.Y.Z.N` format.
 
 ## Browser Version Rules
 
@@ -63,7 +63,7 @@ The Firefox `.xpi` must be produced by AMO signing for formal releases. Unsigned
 5. Confirm AMO credentials are configured in the GitHub repository secrets when publishing Firefox assets.
 6. Commit the release preparation changes.
 7. Push tag `vX.Y.Z` or run the release workflow for an existing version tag.
-8. Let GitHub Actions package Chromium, sign Firefox, collect assets, and publish the GitHub Release.
+8. Let GitHub Actions validate version consistency, package Chromium, sign Firefox, collect assets, and publish the GitHub Release. If `vX.Y.Z` already exists, the workflow skips publishing instead of attempting to re-sign the same Firefox manifest version.
 
 ## Relationship To Patina Releases
 
