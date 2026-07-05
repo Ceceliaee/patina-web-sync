@@ -30,6 +30,9 @@ type ChromeManifest = {
   };
   permissions?: string[];
   host_permissions?: string[];
+  optional_permissions?: string[];
+  optional_host_permissions?: string[];
+  content_scripts?: unknown[];
   icons?: Record<string, string>;
   options_page?: string;
   action?: {
@@ -77,6 +80,31 @@ function getPackageRootName(version: string) {
   return `patina-chromium-extension-v${version}`;
 }
 
+function assertExactStringSet(label: string, actual: unknown, expected: readonly string[]) {
+  if (actual !== undefined && (!Array.isArray(actual) || actual.some((value) => typeof value !== "string"))) {
+    fail(`Chromium extension check failed. ${label} must be a string array when present.`);
+  }
+  const actualValues = [...((actual as string[] | undefined) ?? [])].sort((left, right) => left.localeCompare(right));
+  const expectedValues = [...expected].sort((left, right) => left.localeCompare(right));
+  if (
+    actualValues.length !== expectedValues.length
+    || actualValues.some((value, index) => value !== expectedValues[index])
+  ) {
+    fail(
+      `Chromium extension check failed. ${label} must be exactly: ${expectedValues.join(", ") || "(empty)"}.`
+    );
+  }
+}
+
+function assertEmptyArray(label: string, actual: unknown) {
+  if (actual !== undefined && !Array.isArray(actual)) {
+    fail(`Chromium extension check failed. ${label} must be an array when present.`);
+  }
+  if ((actual as unknown[] | undefined)?.length) {
+    fail(`Chromium extension check failed. ${label} must stay empty; Patina Web Sync must not read page bodies.`);
+  }
+}
+
 async function cleanExistingPackages() {
   let entries: string[] = [];
   try {
@@ -111,8 +139,6 @@ async function checkExtension() {
 
   const manifest = await readManifest();
   const background = await readFile(join(SOURCE_DIR, "background.js"), "utf8");
-  const permissions = new Set(manifest.permissions ?? []);
-  const hostPermissions = manifest.host_permissions ?? [];
   const csp = manifest.content_security_policy?.extension_pages ?? "";
 
   if (manifest.manifest_version !== 3) {
@@ -125,14 +151,11 @@ async function checkExtension() {
   if (manifest.background?.service_worker !== "background.js") {
     fail("Chromium extension check failed. background.service_worker must be background.js.");
   }
-  for (const permission of ["alarms", "favicon", "storage", "tabs"]) {
-    if (!permissions.has(permission)) {
-      fail(`Chromium extension check failed. Missing permission: ${permission}.`);
-    }
-  }
-  if (!hostPermissions.includes("http://127.0.0.1/*") || !hostPermissions.includes("http://localhost/*")) {
-    fail("Chromium extension check failed. Host permissions must stay limited to local Patina addresses.");
-  }
+  assertExactStringSet("permissions", manifest.permissions, ["alarms", "favicon", "storage", "tabs"]);
+  assertExactStringSet("host_permissions", manifest.host_permissions, ["http://127.0.0.1/*", "http://localhost/*"]);
+  assertExactStringSet("optional_permissions", manifest.optional_permissions, []);
+  assertExactStringSet("optional_host_permissions", manifest.optional_host_permissions, []);
+  assertEmptyArray("content_scripts", manifest.content_scripts);
   if (!csp.includes("http://127.0.0.1:*") || !csp.includes("http://localhost:*")) {
     fail("Chromium extension check failed. CSP must allow local HTTP bridge addresses.");
   }
@@ -149,6 +172,18 @@ async function checkExtension() {
   }
   if (!background.includes("/_favicon/") || !background.includes("chromeCachedFaviconUrl")) {
     fail("Chromium extension check failed. Background worker must use the browser's local favicon cache.");
+  }
+  if (!background.includes("function isPrivateTab") || !background.includes("tab?.incognito === true")) {
+    fail("Chromium extension check failed. Background worker must explicitly detect private/incognito tabs.");
+  }
+  if (!background.includes("setStatus(\"private\")")) {
+    fail("Chromium extension check failed. Background worker must mark private/incognito tabs without sending them.");
+  }
+  if (!background.includes("incognito: tab.incognito")) {
+    fail("Chromium extension check failed. Background worker must preserve the v1 incognito field for non-private payloads.");
+  }
+  if (!background.includes("data?.ok !== true")) {
+    fail("Chromium extension check failed. Background worker must require explicit ok:true bridge responses.");
   }
   for (const [size, iconFile] of Object.entries(REQUIRED_ICON_FILES)) {
     if (manifest.icons?.[size] !== iconFile) {

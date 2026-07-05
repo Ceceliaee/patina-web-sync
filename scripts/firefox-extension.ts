@@ -33,6 +33,9 @@ type FirefoxManifest = {
   };
   permissions?: string[];
   host_permissions?: string[];
+  optional_permissions?: string[];
+  optional_host_permissions?: string[];
+  content_scripts?: unknown[];
   icons?: Record<string, string>;
   options_page?: string;
   action?: {
@@ -89,6 +92,31 @@ function getPackageRootName(version: string) {
   return `patina-firefox-extension-v${version}`;
 }
 
+function assertExactStringSet(label: string, actual: unknown, expected: readonly string[]) {
+  if (actual !== undefined && (!Array.isArray(actual) || actual.some((value) => typeof value !== "string"))) {
+    fail(`Firefox extension check failed. ${label} must be a string array when present.`);
+  }
+  const actualValues = [...((actual as string[] | undefined) ?? [])].sort((left, right) => left.localeCompare(right));
+  const expectedValues = [...expected].sort((left, right) => left.localeCompare(right));
+  if (
+    actualValues.length !== expectedValues.length
+    || actualValues.some((value, index) => value !== expectedValues[index])
+  ) {
+    fail(
+      `Firefox extension check failed. ${label} must be exactly: ${expectedValues.join(", ") || "(empty)"}.`
+    );
+  }
+}
+
+function assertEmptyArray(label: string, actual: unknown) {
+  if (actual !== undefined && !Array.isArray(actual)) {
+    fail(`Firefox extension check failed. ${label} must be an array when present.`);
+  }
+  if ((actual as unknown[] | undefined)?.length) {
+    fail(`Firefox extension check failed. ${label} must stay empty; Patina Web Sync must not read page bodies.`);
+  }
+}
+
 async function cleanExistingUnsignedPackages() {
   let entries: string[] = [];
   try {
@@ -138,8 +166,6 @@ async function checkExtension() {
 
   const manifest = await readManifest();
   const background = await readFile(join(SOURCE_DIR, "background.js"), "utf8");
-  const permissions = new Set(manifest.permissions ?? []);
-  const hostPermissions = manifest.host_permissions ?? [];
   const csp = manifest.content_security_policy?.extension_pages ?? "";
 
   if (manifest.manifest_version !== 3) {
@@ -155,17 +181,11 @@ async function checkExtension() {
   if (manifest.background?.scripts?.length !== 1 || manifest.background.scripts[0] !== "background.js") {
     fail("Firefox extension check failed. background.scripts must contain background.js.");
   }
-  for (const permission of ["alarms", "storage", "tabs"]) {
-    if (!permissions.has(permission)) {
-      fail(`Firefox extension check failed. Missing permission: ${permission}.`);
-    }
-  }
-  if (permissions.has("favicon")) {
-    fail("Firefox extension check failed. Firefox target must not request Chromium-only favicon permission.");
-  }
-  if (!hostPermissions.includes("http://127.0.0.1/*") || !hostPermissions.includes("http://localhost/*")) {
-    fail("Firefox extension check failed. Host permissions must stay limited to local Patina addresses.");
-  }
+  assertExactStringSet("permissions", manifest.permissions, ["alarms", "storage", "tabs"]);
+  assertExactStringSet("host_permissions", manifest.host_permissions, ["http://127.0.0.1/*", "http://localhost/*"]);
+  assertExactStringSet("optional_permissions", manifest.optional_permissions, []);
+  assertExactStringSet("optional_host_permissions", manifest.optional_host_permissions, []);
+  assertEmptyArray("content_scripts", manifest.content_scripts);
   if (!csp.includes("http://127.0.0.1:*") || !csp.includes("http://localhost:*")) {
     fail("Firefox extension check failed. CSP must allow local HTTP bridge addresses.");
   }
@@ -186,8 +206,17 @@ async function checkExtension() {
   if (!background.includes("/web-activity")) {
     fail("Firefox extension check failed. Background script must post to /web-activity.");
   }
+  if (!background.includes("function isPrivateTab") || !background.includes("tab?.incognito === true")) {
+    fail("Firefox extension check failed. Background script must explicitly detect private/incognito tabs.");
+  }
+  if (!background.includes("setStatus(\"private\")")) {
+    fail("Firefox extension check failed. Background script must mark private/incognito tabs without sending them.");
+  }
   if (!background.includes("incognito: tab.incognito")) {
-    fail("Firefox extension check failed. Background script must include incognito state.");
+    fail("Firefox extension check failed. Background script must preserve the v1 incognito field for non-private payloads.");
+  }
+  if (!background.includes("data?.ok !== true")) {
+    fail("Firefox extension check failed. Background script must require explicit ok:true bridge responses.");
   }
   if (background.includes("chrome.")) {
     fail("Firefox extension check failed. Use browser.* APIs for this target.");
