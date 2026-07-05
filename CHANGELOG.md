@@ -5,6 +5,7 @@
 ### Added
 
 - Created the standalone Patina Web Sync companion extension project.
+- Added long-term product scope, architecture, and release policy documents.
 
 ### Changed
 

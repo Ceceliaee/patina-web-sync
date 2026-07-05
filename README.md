@@ -27,6 +27,9 @@ It does not read page body content, form values, passwords, screenshots, clipboa
 - `src/firefox/`: Firefox WebExtension target.
 - `scripts/`: validation, build, package, and signing helpers.
 - `store-assets/`: store listing assets.
+- `docs/product-principles-and-scope.md`: long-term product boundary and scope rules.
+- `docs/architecture.md`: long-term browser extension architecture and ownership boundaries.
+- `docs/versioning-and-release-policy.md`: versioning, packaging, AMO signing, and release rules.
 - `docs/web-activity-protocol.md`: local protocol between Patina and this extension.
 
 ## Development
