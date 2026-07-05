@@ -4,7 +4,6 @@ const DEFAULT_PORT = "12345";
 const PORT_PATTERN = /^\d{1,5}$/;
 const FAVICON_URL_MAX_CHARS = 8192;
 const STORAGE_DEFAULTS = {
-  enabled: true,
   port: DEFAULT_PORT,
   token: "",
   clientId: "",
@@ -39,9 +38,6 @@ async function getSettings() {
     clientId = crypto.randomUUID();
     storagePatch.clientId = clientId;
   }
-  if (settings.enabled !== true) {
-    storagePatch.enabled = true;
-  }
   if (Object.keys(storagePatch).length > 0) {
     await browser.storage.local.set(storagePatch);
   }
@@ -52,7 +48,6 @@ async function getSettings() {
     clientId,
     port,
     token: String(settings.token || "").trim(),
-    enabled: true,
   };
 }
 
@@ -77,20 +72,27 @@ function webActivityUrl(endpoint) {
 }
 
 function isTrackableTab(tab) {
+  if (isPrivateTab(tab)) return false;
   const url = String(tab?.url || "");
   return url.startsWith("http://") || url.startsWith("https://");
+}
+
+function isPrivateTab(tab) {
+  return tab?.incognito === true;
 }
 
 async function getActiveTrackableTab(eventReason) {
   const activeTabs = await browser.tabs.query({ active: true, lastFocusedWindow: true });
   const activeTab = activeTabs[0];
-  if (isTrackableTab(activeTab)) return activeTab;
-  if (eventReason !== "manual") return null;
+  if (isPrivateTab(activeTab)) return { tab: null, reason: "private" };
+  if (isTrackableTab(activeTab)) return { tab: activeTab, reason: "" };
+  if (eventReason !== "manual") return { tab: null, reason: "none" };
 
   const tabs = await browser.tabs.query({ lastFocusedWindow: true });
-  return tabs
+  const fallbackTab = tabs
     .filter(isTrackableTab)
     .sort((left, right) => (right.lastAccessed || 0) - (left.lastAccessed || 0))[0] || null;
+  return { tab: fallbackTab, reason: fallbackTab ? "" : "none" };
 }
 
 function resolveFaviconSource(tab) {
@@ -102,18 +104,19 @@ function resolveFaviconSource(tab) {
 
 async function sendActiveTab(eventReason = "refresh") {
   const settings = await getSettings();
-  if (!settings.enabled) {
-    await setStatus("disabled");
-    return;
-  }
   if (!settings.port || !settings.token) {
     await setStatus("needs-config", "请填写端口和 Token。");
     return;
   }
 
-  const tab = await getActiveTrackableTab(eventReason);
+  const activeTab = await getActiveTrackableTab(eventReason);
+  const tab = activeTab.tab;
   if (!tab) {
-    await setStatus("disconnected", "当前没有可同步的网页。");
+    if (activeTab.reason === "private") {
+      await setStatus("private");
+    } else {
+      await setStatus("disconnected", "当前没有可同步的网页。");
+    }
     return;
   }
 
@@ -149,7 +152,7 @@ async function sendActiveTab(eventReason = "refresh") {
       await setStatus("disabled", "Patina 网页同步未开启。");
       return;
     }
-    if (!response.ok || data?.ok === false) {
+    if (!response.ok || data?.ok !== true) {
       await setStatus("error", data?.message || "");
       return;
     }
@@ -195,12 +198,7 @@ browser.alarms.onAlarm.addListener((alarm) => {
 
 browser.storage.onChanged.addListener((changes, areaName) => {
   if (areaName !== "local") return;
-  if (changes.enabled?.newValue === true) {
-    queueActiveTab("settings-enabled");
-  }
-  if (changes.enabled?.newValue === false) {
-    void setStatus("disabled");
-  }
+  if (changes.port || changes.token) queueActiveTab("settings-changed");
 });
 
 browser.runtime.onMessage.addListener((message) => {

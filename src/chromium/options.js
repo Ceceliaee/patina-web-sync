@@ -3,7 +3,6 @@ const PORT_PATTERN = /^\d{1,5}$/;
 const DEFAULT_LANGUAGE = "zh-CN";
 
 const DEFAULTS = {
-  enabled: true,
   port: DEFAULT_PORT,
   token: "",
   language: DEFAULT_LANGUAGE,
@@ -30,8 +29,10 @@ const OPTIONS_TEXT = {
     statusPendingConfig: "待配置",
     statusSaved: "已保存",
     statusSaving: "保存中",
+    statusPrivate: "私密窗口不会同步",
     invalidToken: "Token 无效",
     missingToken: "请填写 Token",
+    webRecordingDisabled: "Patina 网页同步未开启",
     syncFailedPrefix: "未同步：",
   },
   en: {
@@ -52,8 +53,10 @@ const OPTIONS_TEXT = {
     statusPendingConfig: "Needs setup",
     statusSaved: "Saved",
     statusSaving: "Saving",
+    statusPrivate: "Private window is not synced",
     invalidToken: "Invalid Token",
     missingToken: "Enter Token",
+    webRecordingDisabled: "Patina Web Sync is off",
     syncFailedPrefix: "Not synced: ",
   },
 };
@@ -138,12 +141,21 @@ function localizeStatusMessage(message) {
   ) {
     return copy().missingToken;
   }
+  if (
+    value.includes("Patina 网页同步未开启")
+    || normalized.includes("patina web recording is off")
+    || normalized.includes("web-recording-disabled")
+  ) {
+    return copy().webRecordingDisabled;
+  }
   return value;
 }
 
-function formatStatus(status, message, enabled) {
+function formatStatus(status, message) {
   const text = copy();
-  if (!enabled) return { label: text.statusNotEnabled, tone: "neutral", code: "disabled" };
+  if (status === "private") {
+    return { label: text.statusPrivate, tone: "neutral", code: "private" };
+  }
   if (status === "disconnected") {
     return { label: text.statusNotSynced, tone: "neutral", code: "disconnected" };
   }
@@ -183,8 +195,12 @@ function configStatus(port, token) {
 function savedSettingsStatus(settings, port) {
   const config = configStatus(port, String(settings.token || ""));
   if (config.code !== "configured") return config;
-  if (settings.lastStatus === "error" && settings.lastMessage) {
-    return formatStatus(settings.lastStatus, settings.lastMessage, true);
+  if (
+    settings.lastStatus === "error"
+    || settings.lastStatus === "disabled"
+    || settings.lastStatus === "private"
+  ) {
+    return formatStatus(settings.lastStatus, settings.lastMessage);
   }
   return config;
 }
@@ -212,12 +228,12 @@ async function load({ resetStatus = true } = {}) {
   portInput.value = port;
   tokenInput.value = settings.token || "";
   if (resetStatus) {
-    const status = savedSettingsStatus({ ...settings, enabled: true }, port);
+    const status = savedSettingsStatus(settings, port);
     setStatus(status.label, status.tone, status.code);
   }
   syncFormState({ updateStatus: false });
-  if (port !== settings.port || settings.enabled !== true || settings.language !== currentLanguage) {
-    await chrome.storage.local.set({ enabled: true, port, language: currentLanguage });
+  if (port !== settings.port || settings.language !== currentLanguage) {
+    await chrome.storage.local.set({ port, language: currentLanguage });
   }
 }
 
@@ -225,7 +241,7 @@ async function refreshSyncStatus() {
   const settings = await chrome.storage.local.get(DEFAULTS);
   currentLanguage = normalizeLanguage(settings.language);
   applyLanguage();
-  const status = formatStatus(settings.lastStatus, settings.lastMessage, true);
+  const status = formatStatus(settings.lastStatus, settings.lastMessage);
   setStatus(status.label, status.tone, status.code);
   syncFormState({ updateStatus: false });
 }
@@ -242,15 +258,13 @@ async function save() {
   const token = tokenInput.value.trim();
   const currentPort = normalizePort(current.port, "");
   const currentToken = String(current.token || "").trim();
-  const connectionChanged = current.enabled !== true
-    || port !== currentPort
+  const connectionChanged = port !== currentPort
     || token !== currentToken;
-  const nextSettings = { ...current, enabled: true, port, token, language: currentLanguage };
+  const nextSettings = { ...current, port, token, language: currentLanguage };
   const nextStatus = connectionChanged
     ? configStatus(port, token)
     : savedSettingsStatus(nextSettings, port);
   await chrome.storage.local.set({
-    enabled: true,
     port,
     token,
     language: currentLanguage,
@@ -342,8 +356,7 @@ testButton.addEventListener("click", async () => {
 chrome.storage.onChanged.addListener((changes, areaName) => {
   if (areaName !== "local") return;
   if (
-    changes.enabled
-    || changes.port
+    changes.port
     || changes.token
     || changes.language
     || changes.lastStatus

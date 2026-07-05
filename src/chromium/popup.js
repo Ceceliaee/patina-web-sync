@@ -1,7 +1,6 @@
 const DEFAULT_LANGUAGE = "zh-CN";
 
 const DEFAULTS = {
-  enabled: true,
   port: "12345",
   token: "",
   language: DEFAULT_LANGUAGE,
@@ -28,6 +27,8 @@ const POPUP_TEXT = {
     synced: "已同步",
     syncing: "同步中",
     noPage: "无网页",
+    privateBadge: "私密窗口",
+    privateHelp: "私密窗口不会同步",
   },
   en: {
     currentPageLabel: "Current page",
@@ -47,6 +48,8 @@ const POPUP_TEXT = {
     synced: "Synced",
     syncing: "Syncing",
     noPage: "No page",
+    privateBadge: "Private",
+    privateHelp: "Private window is not synced",
   },
 };
 
@@ -95,14 +98,6 @@ function messageBadge(status, text) {
 }
 
 function statusView(settings, text) {
-  if (!settings.enabled) {
-    return {
-      badge: text.off,
-      tone: "neutral",
-      actionLabel: text.openSettings,
-      canSync: false,
-    };
-  }
   if (!hasConfig(settings)) {
     return {
       badge: text.pendingConfig,
@@ -182,25 +177,34 @@ async function render() {
   tabLabel.textContent = text.currentPageLabel;
   optionsButton.textContent = text.settings;
 
-  if (settings.enabled !== true || settings.language !== language) {
-    settings.enabled = true;
+  if (settings.language !== language) {
     settings.language = language;
-    await chrome.storage.local.set({ enabled: true, language });
+    await chrome.storage.local.set({ language });
   }
 
   const [activeTab] = await chrome.tabs.query({ active: true, lastFocusedWindow: true });
   const view = statusView(settings, text);
-  const trackable = isTrackableUrl(activeTab?.url);
-  const blockedByPage = Boolean(settings.enabled && hasConfig(settings) && !trackable);
+  const privateTab = activeTab?.incognito === true;
+  const trackable = !privateTab && isTrackableUrl(activeTab?.url);
+  const configured = hasConfig(settings);
+  const blockedByPage = Boolean(configured && !trackable);
 
-  statusBadge.textContent = blockedByPage ? text.notSynced : view.badge;
+  statusBadge.textContent = privateTab && configured
+    ? text.privateBadge
+    : blockedByPage
+      ? text.notSynced
+      : view.badge;
   statusBadge.dataset.tone = blockedByPage ? "neutral" : view.tone;
 
-  tabTitle.textContent = trackable ? formatDomain(activeTab.url) : (activeTab?.title || text.noActivePage);
-  tabUrl.textContent = trackable ? (activeTab?.title || "") : text.httpOnly;
+  tabTitle.textContent = privateTab
+    ? text.privateHelp
+    : trackable
+      ? formatDomain(activeTab.url)
+      : (activeTab?.title || text.noActivePage);
+  tabUrl.textContent = privateTab ? "" : trackable ? (activeTab?.title || "") : text.httpOnly;
 
   sendTabButton.textContent = view.actionLabel;
-  sendTabButton.disabled = Boolean(settings.enabled && hasConfig(settings) && !trackable);
+  sendTabButton.disabled = Boolean(configured && !trackable);
   sendTabButton.dataset.mode = view.canSync ? "sync" : "options";
 }
 
@@ -231,8 +235,7 @@ sendTabButton.addEventListener("click", async () => {
 chrome.storage.onChanged.addListener((changes, areaName) => {
   if (areaName !== "local") return;
   if (
-    changes.enabled
-    || changes.port
+    changes.port
     || changes.token
     || changes.language
     || changes.lastStatus
