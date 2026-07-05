@@ -1,8 +1,13 @@
 # Changelog
 
-本文件记录 Patina Web Sync 的版本发布说明。
+本文件是版本说明的唯一来源。
 
-只记录已经进入发布结果、影响用户安装或维护发布判断的变化；日常仓库维护不写入本文件。
+格式遵循仓库内的 [`docs/versioning-and-release-policy.md`](docs/versioning-and-release-policy.md)。
+
+每个正式版本应同时维护：
+
+- `Release:` 给 GitHub Release 使用的简短摘要。
+- 分类条目保留完整版本记录，供后续追溯和维护使用。
 
 ## [Unreleased]
 
