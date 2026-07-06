@@ -4,7 +4,7 @@
 
 Local webpage activity sync extension for Patina.
 
-English | [Simplified Chinese](README.zh-CN.md)
+English · [简体中文](README.zh-CN.md)
 
 ![Targets](https://img.shields.io/badge/targets-Chromium%20%7C%20Firefox-4f6f8f)
 ![Manifest](https://img.shields.io/badge/manifest-v3-4f7f8f)
