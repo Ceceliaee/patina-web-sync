@@ -14,7 +14,7 @@ Patina 的本地网页活动同步扩展。
 </div>
 
 <p align="center">
-把当前网页同步给本机 Patina。
+将当前网页发送给本机 Patina，用于补全桌面时间记录。
 </p>
 
 <p align="center">

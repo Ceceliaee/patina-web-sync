@@ -14,7 +14,7 @@ English · [简体中文](README.zh-CN.md)
 </div>
 
 <p align="center">
-Sync the current webpage to local Patina.
+Send the current webpage to local Patina to complete desktop time records.
 </p>
 
 <p align="center">
