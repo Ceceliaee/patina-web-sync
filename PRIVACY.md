@@ -6,11 +6,11 @@ Patina Web Sync is a browser extension companion for the Patina desktop app. Its
 
 ## Data Handled by the Extension
 
-When syncing is enabled and configured, Patina Web Sync may process the following information from the non-private active browser tab:
+When Web Sync is enabled and configured, Patina Web Sync may process the following information from the non-private active browser tab:
 
 - Website address
 - Page title
-- Website icon URL
+- Website icon or website icon URL, depending on browser target
 - Browser tab ID and window ID
 - Browser kind
 - Extension version
@@ -18,7 +18,7 @@ When syncing is enabled and configured, Patina Web Sync may process the followin
 - Sync event reason
 - Incognito status for non-private synced tabs (`false`)
 
-Incognito/private tabs are filtered in the extension before any local Web Sync request is sent. Their website address, title, icon URL, and sync payload are not sent to Patina.
+Incognito/private tabs are filtered in the extension before any local Web Sync request is sent. Their website address, title, icon, and sync payload are not sent to Patina.
 
 The extension also stores local configuration in browser extension storage:
 
@@ -51,6 +51,12 @@ Patina Web Sync does not read or collect:
 - Download history
 - Browser history database
 
+## Browser Target Differences
+
+Chromium-family builds request the `favicon` permission so the extension can read the browser's local favicon cache and provide Patina with local website icon data.
+
+Firefox-family builds do not request the Chromium-only `favicon` permission. Firefox builds use the active tab metadata provided by the browser for website icon information.
+
 ## Storage
 
 The extension stores only its configuration and recent sync status in local browser extension storage. Website activity records are stored by the Patina desktop app on the user's computer.
@@ -68,6 +74,7 @@ Users can stop syncing by disabling Web Sync in the Patina desktop app, clearing
 Patina Web Sync requests only the permissions needed for its single purpose:
 
 - `tabs`: read active tab metadata such as website address, title, tab ID, window ID, and icon reference for non-private synced tabs, and detect when the active tab is incognito/private so it can be skipped.
+- `favicon`: Chromium-family builds only. Read the browser's local favicon cache so Patina can display the website icon.
 - `storage`: store local connection settings, language preference, and recent sync status.
 - `alarms`: refresh active tab sync state at lightweight intervals.
 - Local host permissions: send sync requests only to the local Patina app on `127.0.0.1` or `localhost`.

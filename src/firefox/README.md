@@ -13,9 +13,9 @@ Patina Web Sync sends the active webpage from a Firefox-family browser to the lo
 ## Current Distribution
 
 Patina Web Sync is currently distributed through GitHub Releases and manual local installation.
-For Firefox-family browsers, the user-facing release package is a Mozilla AMO `unlisted` signed `.xpi`.
+For Firefox-family browsers, the user-facing GitHub Release package is a Mozilla AMO `unlisted` signed `.xpi`.
 
-Firefox Add-ons listing materials are not included yet. Store submission is out of scope for this target.
+Firefox AMO listed submission materials are kept in the repository-level `STORE_LISTING.md`, but the extension is not listed on AMO yet.
 
 ## Source Layout
 
@@ -24,7 +24,6 @@ Firefox Add-ons listing materials are not included yet. Store submission is out 
 - `popup.html` / `popup.js`: browser action popup.
 - `options.html` / `options.js`: extension options page.
 - `icons/`: extension icons.
-- `PRIVACY.md`: privacy policy for this extension target.
 
 ## Maintainer Workflow
 
@@ -77,3 +76,8 @@ Formal GitHub Releases upload only the signed `.xpi`. Users install it through F
 - Uses the active tab metadata provided by the browser for favicon information.
 - Does not read page DOM, form values, screenshots, clipboard, history database, or page content.
 - Stores extension configuration in the browser's local extension storage.
+
+## Firefox AMO Draft
+
+- Shared privacy policy: [`../../PRIVACY.md`](../../PRIVACY.md)
+- Shared store listing draft: [`../../STORE_LISTING.md`](../../STORE_LISTING.md)

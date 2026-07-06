@@ -42,6 +42,12 @@ Firefox 版本需要额外谨慎。同一个稳定 Gecko id `web-sync@patina.loc
 
 不要为了验证迁移或普通文档变更而运行 AMO 签名。只有在准备真实 Firefox 发布，并确认目标版本向前移动后，才运行 `npm run extension:firefox:sign`。
 
+## Browser Store Submission
+
+浏览器商店提交准备遵循 `docs/store-submission.md`。Chrome Web Store、Firefox AMO 和 Microsoft Edge Add-ons 的 listing、privacy policy、reviewer notes、assets 与 package 行为必须保持一致。
+
+Firefox AMO listed submission 与本仓库的 unlisted signing helper 是不同流程。准备 AMO listed 上架时，默认使用 AMO submission UI 选择 `On this site` 并让 AMO validator 检查上传 package；不要把 `npm run extension:firefox:sign` 当作 AMO listed submission 的默认步骤。
+
 ## 验证
 
 默认验证：

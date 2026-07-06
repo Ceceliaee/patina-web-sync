@@ -18,10 +18,12 @@ Browser extension -> local HTTP POST -> Patina desktop app -> local Patina data 
 - `src/firefox/`：Firefox WebExtension 目标。
 - `scripts/`：验证、构建、打包和签名辅助脚本。
 - `store-assets/`：浏览器商店 listing 素材。
+- `STORE_LISTING.md`：Chrome Web Store、Firefox AMO 和 Microsoft Edge Add-ons 共用商店信息草案。
 - `docs/product-principles-and-scope.md`：产品边界和范围规则。
 - `docs/architecture.md`：长期所有权和模块边界规则。
 - `docs/engineering-quality.md`：验证、隐私、发布和跨浏览器质量规则。
 - `docs/quiet-pro-component-guidelines.md`：轻量扩展 UI 设计规则。
+- `docs/store-submission.md`：浏览器商店上架准备参考。
 - `docs/versioning-and-release-policy.md`：扩展版本和发布规则。
 - `docs/web-activity-protocol.md`：与 Patina 共享的本机协议。
 

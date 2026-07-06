@@ -14,7 +14,7 @@ Patina Web Sync sends the active webpage from a Chromium-based browser to the lo
 
 Patina Web Sync is currently distributed through GitHub Releases and manual local installation.
 
-Chrome Web Store listing materials are kept in this repository for a future store submission, but the extension is not published on the Chrome Web Store yet.
+Chrome Web Store and Microsoft Edge Add-ons listing materials are kept in the repository-level `STORE_LISTING.md`, but the extension is not published in either store yet.
 
 ## Source Layout
 
@@ -23,8 +23,6 @@ Chrome Web Store listing materials are kept in this repository for a future stor
 - `popup.html` / `popup.js`: browser action popup.
 - `options.html` / `options.js`: extension options page.
 - `icons/`: extension icons.
-- `PRIVACY.md`: Chrome Web Store privacy policy draft.
-- `STORE_LISTING.md`: Chrome Web Store listing draft.
 
 ## Maintainer Workflow
 
@@ -64,7 +62,7 @@ The zip contains a versioned extension folder. Users load that extracted folder 
 - Does not read page DOM, form values, screenshots, clipboard, history database, or page content.
 - Stores extension configuration in the browser's local extension storage.
 
-## Chrome Web Store Draft
+## Browser Store Drafts
 
-- Privacy policy: [`PRIVACY.md`](./PRIVACY.md)
-- Store listing draft: [`STORE_LISTING.md`](./STORE_LISTING.md)
+- Shared privacy policy: [`../../PRIVACY.md`](../../PRIVACY.md)
+- Shared store listing draft: [`../../STORE_LISTING.md`](../../STORE_LISTING.md)
