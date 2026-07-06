@@ -14,7 +14,7 @@ English · [简体中文](README.zh-CN.md)
 </div>
 
 <p align="center">
-Patina Web Sync identifies the current browser page so Patina can complete local, quiet, trustworthy desktop time records.
+Sync the current webpage to local Patina.
 </p>
 
 <p align="center">

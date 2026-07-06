@@ -14,7 +14,7 @@ Patina 的本地网页活动同步扩展。
 </div>
 
 <p align="center">
-Patina Web Sync 识别浏览器当前网页，让 Patina 补全本地、安静、可信的个人桌面时间记录。
+把当前网页同步给本机 Patina。
 </p>
 
 <p align="center">
