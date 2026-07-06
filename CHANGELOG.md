@@ -17,6 +17,25 @@ Release: 待定。
 
 ### Changed
 
+### Fixed
+
+### Removed
+
+### Internal
+
+## [0.2.0] - 2026-07-05
+
+Release: Patina Web Sync 0.2.0 is the first browser-store submission candidate, with stricter privacy behavior, validation, and store-review materials.
+
+### Added
+
+- Added a shared browser-store privacy policy for Chrome Web Store, Firefox AMO, and Microsoft Edge Add-ons submissions.
+- Added shared reviewer test instructions for validating local Patina setup, normal webpage sync, private window behavior, and error states.
+- Added a long-lived browser-store submission reference and Firefox AMO / Microsoft Edge listing drafts.
+
+### Changed
+
+- Updated package and manifest versions to `0.2.0` for the first store candidate.
 - Incognito/private browser tabs are now filtered in the extension before any local Web Sync request is sent.
 
 ### Fixed

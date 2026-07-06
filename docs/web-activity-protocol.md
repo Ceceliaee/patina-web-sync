@@ -30,7 +30,7 @@ Content-Type: application/json
   "protocolVersion": 1,
   "browserClientId": "uuid-or-client-id",
   "browserKind": "chrome",
-  "extensionVersion": "0.1.1",
+  "extensionVersion": "0.2.0",
   "tabId": 1,
   "windowId": 1,
   "url": "https://example.com/page",
