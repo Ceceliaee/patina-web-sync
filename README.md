@@ -14,7 +14,7 @@ English · [简体中文](README.zh-CN.md)
 </div>
 
 <p align="center">
-Send the current webpage to local Patina to complete desktop time records.
+Send the current non-private website to local Patina to complete desktop time records.
 </p>
 
 <p align="center">
@@ -27,9 +27,9 @@ Send the current webpage to local Patina to complete desktop time records.
 
 ## Why Patina Web Sync
 
-Patina can automatically record foreground apps, but browser activity usually appears only as Chrome, Edge, or Firefox. Patina Web Sync adds the current page URL, title, and site icon so browser time records do not stop at "using a browser."
+Patina can automatically record foreground apps, but browser activity usually appears only as Chrome, Edge, or Firefox. Patina Web Sync adds the current page's complete URL, title, and site icon so browser time records do not stop at "using a browser."
 
-- Identifies the active webpage and syncs its URL, title, and site icon information to local Patina.
+- Identifies the active webpage and syncs its complete URL, title, and site icon information to local Patina so the URL can be included in data exports.
 - Pairs with the local port and token shown in Patina Settings, without an account.
 - Connects only to `127.0.0.1` or `localhost`, not to a cloud service.
 - Shows connection and sync status in the extension popup and options page.
@@ -61,8 +61,8 @@ If Patina Web Sync is disabled in Patina, the token is incorrect, or the local p
 
 ### Active Webpage Sync
 
-- Syncs the current active tab's website URL, title, and site icon information.
-- Records browser kind, extension version, tab/window id, capture time, and sync reason.
+- Syncs the current active tab's complete URL, title, and site icon information.
+- Chromium sends a local browser client identifier, browser kind, and extension version for compatibility and diagnostics. Firefox sends these fields only after optional technical-data consent.
 - Syncs only normal `http` / `https` pages; browser internal pages are not synced as webpage activity.
 
 ### Local Pairing
@@ -80,14 +80,14 @@ If Patina Web Sync is disabled in Patina, the token is incorrect, or the local p
 ### Browser Targets
 
 - The Chromium-family target supports Chrome, Edge, and other Manifest V3 browsers, and uses the browser's local favicon cache.
-- The Firefox target keeps its own manifest and stable Gecko id, and does not request the Chromium-only `favicon` permission.
+- The Firefox target requires Firefox 142 or later, keeps its stable Gecko id, uses built-in data consent, and does not request the Chromium-only `favicon` permission.
 
 ## Reliability And Privacy
 
 Patina Web Sync has a narrow boundary: it only performs browser-side local webpage activity sync.
 
 - **Local communication**: the extension sends requests only to local Patina.
-- **Minimal data**: it syncs the URL, title, site icon information, and small sync metadata needed for non-private active tabs.
+- **Purpose-limited data**: it syncs the complete URL, title, site icon information, and the minimum local compatibility metadata needed for non-private active tabs and URL export.
 - **No page collection**: it does not read page body content, form values, passwords, screenshots, clipboard contents, cookies, download history, or the browser history database.
 - **No remote service**: it does not provide accounts, cloud sync, team workspace, analytics, or remote collection.
 - **Explicit success condition**: the extension shows a sync as successful only when local Patina returns a successful response.
