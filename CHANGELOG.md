@@ -11,55 +11,47 @@
 
 ## [Unreleased]
 
-Release: 待定。
+Release: Patina Web Sync 0.2.0 是首个浏览器商店候选版本，补齐私密窗口过滤、成功响应校验和上架材料。
 
 ### Added
 
-### Changed
-
-### Fixed
-
-### Removed
-
-### Internal
-
-## [0.2.0] - 2026-07-05
-
-Release: Patina Web Sync 0.2.0 is the first browser-store submission candidate, with stricter privacy behavior, validation, and store-review materials.
-
-### Added
-
-- Added a shared browser-store privacy policy for Chrome Web Store, Firefox AMO, and Microsoft Edge Add-ons submissions.
-- Added shared reviewer test instructions for validating local Patina setup, normal webpage sync, private window behavior, and error states.
-- Added a long-lived browser-store submission reference and Firefox AMO / Microsoft Edge listing drafts.
+- 补充浏览器商店上架用的共用隐私政策。
+- 补充审核员测试说明，覆盖本机 Patina 配置、普通网页同步、私密窗口跳过和错误状态。
+- 补充浏览器商店提交参考，以及 Firefox AMO / Microsoft Edge Add-ons 商店页文案草稿。
+- 为 Chromium 与 Firefox manifest 增加英语和简体中文 locale messages，支持商店本地化 listing。
+- Firefox 142+ 使用内置数据同意声明，核心鉴权、浏览活动、可能包含在完整 URL 查询中的搜索词和网站内容为 required，本机技术与交互数据为 optional。
 
 ### Changed
 
-- Updated package and manifest versions to `0.2.0` for the first store candidate.
-- Incognito/private browser tabs are now filtered in the extension before any local Web Sync request is sent.
+- 将项目版本与两个扩展 manifest 版本更新到 `0.2.0`。
+- 扩展会在发送本机网页同步请求前跳过无痕 / 私密标签页。
+- 保留当前活动页面的完整 URL（包括 path、query 和 fragment），使 Patina 可以在本机保存并导出“URL 地址”。
+- Firefox 最低支持版本调整为 142，以使用浏览器内置数据同意并通过桌面 / Android compatibility validator；拒绝可选技术数据不会影响核心同步。
 
 ### Fixed
 
-- Web Sync now requires the local bridge response to explicitly return `ok: true` before the popup/options state can show as synced.
+- 弹窗和选项页只有在本机桥接响应明确返回 `ok: true` 后，才会显示为已同步。
 
 ### Removed
 
-- Removed the extension-local fake `enabled` storage state so Patina desktop remains the source of truth for whether Web Sync is enabled.
+- 移除扩展本地伪造的 `enabled` 状态，让 Patina 桌面端继续作为网页同步是否启用的来源。
+- 从新 payload 中移除 tab/window ID、采集时间和事件原因等非必要技术字段。
 
 ### Internal
 
-- Extension validation now enforces exact permissions, exact local host permissions, empty optional permissions, empty content scripts, private-tab filtering, and explicit `ok: true` bridge success handling.
-- Target README artifact examples now use version placeholders instead of stale `v0.1.0` file names.
-- 发布流程新增版本一致性校验，并在目标 GitHub Release 已存在时跳过发布，避免重复签名同一个 Firefox manifest version。
+- 扩展校验现在覆盖精确权限、本机主机权限、空可选权限、空内容脚本、无痕 / 私密过滤和 `ok: true` 成功响应。
+- 扩展校验现在覆盖完整 URL 传输、Firefox 数据同意、manifest locales 和商店素材尺寸；生成 zip 的根目录直接包含 `manifest.json`。
+- README 中的发布附件示例改用版本占位符，避免保留旧的 `v0.1.0` 文件名。
+- 发布流程新增版本一致性校验，并在目标 GitHub Release 已存在时跳过发布，避免重复签名同一个 Firefox manifest 版本。
 
 ## [0.1.1] - 2026-07-05
 
-Release: Patina Web Sync 作为独立 companion extension 首次发布，提供 Chromium zip 与 Firefox 签名 XPI。
+Release: Patina Web Sync 作为独立伴生扩展首次发布，提供 Chromium zip 与 Firefox 签名 XPI。
 
 ### Added
 
-- 首次独立发布 Patina Web Sync companion extension，用于把浏览器前台网页活动写入 Patina 本机接收端。
-- 发布 Chromium-family zip 与经 AMO 签名的 Firefox-family `.xpi` 安装包。
+- 首次独立发布 Patina Web Sync 伴生扩展，用于把浏览器前台网页活动写入 Patina 本机接收端。
+- 发布 Chromium 系 zip 与经 AMO 签名的 Firefox 系 `.xpi` 安装包。
 
 ### Changed
 

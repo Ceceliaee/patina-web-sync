@@ -70,7 +70,7 @@ Formal GitHub Releases upload only the signed `.xpi`. Users install it through F
 
 ## Scope
 
-- Sends only non-private active tab URL, title, favicon URL, protocol `incognito: false` flag, tab/window id, browser kind, and timestamps to local Patina.
+- Sends the non-private active page's complete URL, title, favicon URL, and protocol `incognito: false` flag to local Patina. Tab/window id, timestamps, and event reason stay out of the payload. Firefox 142+ sends the local browser client id, browser kind, and extension version only after optional technical-data consent.
 - Filters incognito/private tabs in the extension before any local Web Sync request is sent.
 - Uses one local HTTP POST when the active tab changes; Patina handles timing from its foreground app tracker.
 - Uses the active tab metadata provided by the browser for favicon information.

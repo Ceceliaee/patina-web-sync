@@ -75,10 +75,20 @@ function webActivityUrl(endpoint) {
   return url.toString();
 }
 
+function toTrackableUrl(rawUrl) {
+  const value = String(rawUrl || "").trim();
+  try {
+    const url = new URL(value);
+    if (url.protocol !== "http:" && url.protocol !== "https:") return "";
+    return value;
+  } catch {
+    return "";
+  }
+}
+
 function isTrackableTab(tab) {
   if (isPrivateTab(tab)) return false;
-  const url = String(tab?.url || "");
-  return url.startsWith("http://") || url.startsWith("https://");
+  return Boolean(toTrackableUrl(tab?.url));
 }
 
 function isPrivateTab(tab) {
@@ -171,20 +181,21 @@ async function sendActiveTab(eventReason = "refresh") {
   }
 
   await setStatus("connecting");
+  const fullUrl = toTrackableUrl(tab.url);
+  if (!fullUrl) {
+    await setStatus("disconnected", "当前没有可同步的网页。");
+    return;
+  }
   const favIconUrl = await resolveFaviconSource(tab);
   const payload = {
     protocolVersion: PROTOCOL_VERSION,
     browserClientId: settings.clientId,
     browserKind: browserKind(),
     extensionVersion: EXTENSION_VERSION,
-    tabId: tab.id,
-    windowId: tab.windowId,
-    url: tab.url,
+    url: fullUrl,
     title: tab.title,
     favIconUrl,
     incognito: tab.incognito,
-    capturedAtMs: Date.now(),
-    eventReason,
   };
 
   try {

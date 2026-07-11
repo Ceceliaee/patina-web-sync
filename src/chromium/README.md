@@ -55,7 +55,7 @@ The zip contains a versioned extension folder. Users load that extracted folder 
 
 ## Scope
 
-- Sends only non-private active tab URL, title, favicon, protocol `incognito: false` flag, tab/window id, browser kind, and timestamps to local Patina.
+- Sends the non-private active page's complete URL, title, favicon information, protocol `incognito: false` flag, local browser client id, browser kind, and extension version to local Patina. Tab/window id, timestamps, and event reason stay out of the payload.
 - Filters incognito/private tabs in the extension before any local Web Sync request is sent.
 - Uses one local HTTP POST when the active tab changes; Patina handles timing from its foreground app tracker.
 - Uses the browser's local favicon cache to turn active-tab icons into local data for icon colors.

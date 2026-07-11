@@ -31,20 +31,20 @@ Content-Type: application/json
   "browserClientId": "uuid-or-client-id",
   "browserKind": "chrome",
   "extensionVersion": "0.2.0",
-  "tabId": 1,
-  "windowId": 1,
-  "url": "https://example.com/page",
+  "url": "https://example.com/search?q=export-me#result",
   "title": "Example Page",
   "favIconUrl": "https://example.com/favicon.ico",
-  "incognito": false,
-  "capturedAtMs": 1710000000000,
-  "eventReason": "tab-activated"
+  "incognito": false
 }
 ```
 
-Patina 当前默认保存域名级网页活动。完整页面 URL 默认不会被 sanitizer 持久化。
+`url` 是浏览器提供的完整页面 URL，包括 path、query 和 fragment。Patina 在本机保存该值，供数据导出的 `url` / “URL 地址”字段使用，同时从中提取域名用于分类和统计。查询参数可能包含搜索词或其他敏感内容，因此商店声明和隐私政策必须明确披露完整 URL。
 
 当前扩展客户端在发送前会跳过 incognito/private 标签页。普通 `http` / `https` 标签页仍使用协议 v1 payload，并可继续携带 `incognito: false` 字段以保持 shape 兼容。
+
+Chromium 系客户端发送 `browserClientId`、`browserKind` 和 `extensionVersion`，用于本机客户端区分和兼容诊断。Firefox 140+ 将这些字段归为可选的 `technicalAndInteraction` 数据；只有用户授予对应内置权限时才发送。Patina 接收端必须兼容这三个字段缺失。
+
+新客户端不再发送 `tabId`、`windowId`、`capturedAtMs` 或 `eventReason`。接收端可以继续宽容解析旧客户端字段，但不得要求新客户端恢复这些非必要字段。
 
 ## 忽略或拒绝的输入
 

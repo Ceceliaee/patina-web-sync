@@ -71,10 +71,20 @@ function webActivityUrl(endpoint) {
   return url.toString();
 }
 
+function toTrackableUrl(rawUrl) {
+  const value = String(rawUrl || "").trim();
+  try {
+    const url = new URL(value);
+    if (url.protocol !== "http:" && url.protocol !== "https:") return "";
+    return value;
+  } catch {
+    return "";
+  }
+}
+
 function isTrackableTab(tab) {
   if (isPrivateTab(tab)) return false;
-  const url = String(tab?.url || "");
-  return url.startsWith("http://") || url.startsWith("https://");
+  return Boolean(toTrackableUrl(tab?.url));
 }
 
 function isPrivateTab(tab) {
@@ -102,6 +112,15 @@ function resolveFaviconSource(tab) {
   return raw;
 }
 
+async function allowsTechnicalData() {
+  try {
+    const permissions = await browser.permissions.getAll();
+    return permissions.data_collection?.includes("technicalAndInteraction") === true;
+  } catch {
+    return false;
+  }
+}
+
 async function sendActiveTab(eventReason = "refresh") {
   const settings = await getSettings();
   if (!settings.port || !settings.token) {
@@ -121,21 +140,26 @@ async function sendActiveTab(eventReason = "refresh") {
   }
 
   await setStatus("connecting");
+  const fullUrl = toTrackableUrl(tab.url);
+  if (!fullUrl) {
+    await setStatus("disconnected", "当前没有可同步的网页。");
+    return;
+  }
   const favIconUrl = resolveFaviconSource(tab);
   const payload = {
     protocolVersion: PROTOCOL_VERSION,
-    browserClientId: settings.clientId,
-    browserKind: browserKind(),
-    extensionVersion: EXTENSION_VERSION,
-    tabId: tab.id,
-    windowId: tab.windowId,
-    url: tab.url,
+    url: fullUrl,
     title: tab.title,
     favIconUrl,
     incognito: tab.incognito,
-    capturedAtMs: Date.now(),
-    eventReason,
   };
+  if (await allowsTechnicalData()) {
+    Object.assign(payload, {
+      browserClientId: settings.clientId,
+      browserKind: browserKind(),
+      extensionVersion: EXTENSION_VERSION,
+    });
+  }
 
   try {
     const response = await fetch(webActivityUrl(endpointFromPort(settings.port)), {

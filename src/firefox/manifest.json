@@ -1,7 +1,8 @@
 {
   "manifest_version": 3,
-  "name": "Patina Web Sync",
-  "description": "Sync the active webpage to the Patina desktop app for local-first time tracking.",
+  "name": "__MSG_extensionName__",
+  "description": "__MSG_extensionDescription__",
+  "default_locale": "en",
   "version": "0.2.0",
   "permissions": [
     "alarms",
@@ -27,7 +28,7 @@
   },
   "options_page": "options.html",
   "action": {
-    "default_title": "Patina Web Sync",
+    "default_title": "__MSG_extensionName__",
     "default_icon": {
       "32": "icons/icon-32.png",
       "64": "icons/icon-64.png",
@@ -37,7 +38,19 @@
   },
   "browser_specific_settings": {
     "gecko": {
-      "id": "web-sync@patina.local"
+      "id": "web-sync@patina.local",
+      "strict_min_version": "142.0",
+      "data_collection_permissions": {
+        "required": [
+          "authenticationInfo",
+          "browsingActivity",
+          "searchTerms",
+          "websiteContent"
+        ],
+        "optional": [
+          "technicalAndInteraction"
+        ]
+      }
     }
   }
 }

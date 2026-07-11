@@ -11,6 +11,10 @@ const REQUIRED_ICON_FILES = {
   "64": "icons/icon-64.png",
   "128": "icons/icon-128.png",
 } as const;
+const LOCALE_FILES = [
+  "_locales/en/messages.json",
+  "_locales/zh_CN/messages.json",
+] as const;
 const EXTENSION_FILES = [
   "manifest.json",
   "background.js",
@@ -18,12 +22,15 @@ const EXTENSION_FILES = [
   "options.js",
   "popup.html",
   "popup.js",
+  ...LOCALE_FILES,
   ...Object.values(REQUIRED_ICON_FILES),
 ] as const;
 
 type ChromeManifest = {
   manifest_version?: number;
   name?: string;
+  description?: string;
+  default_locale?: string;
   version?: string;
   background?: {
     service_worker?: string;
@@ -36,6 +43,7 @@ type ChromeManifest = {
   icons?: Record<string, string>;
   options_page?: string;
   action?: {
+    default_title?: string;
     default_popup?: string;
     default_icon?: Record<string, string>;
   };
@@ -74,10 +82,6 @@ function getExtensionVersion(manifest: ChromeManifest) {
 
 function getPackageFile(version: string) {
   return join(PACKAGE_DIR, `patina-chromium-extension-v${version}.zip`);
-}
-
-function getPackageRootName(version: string) {
-  return `patina-chromium-extension-v${version}`;
 }
 
 function assertExactStringSet(label: string, actual: unknown, expected: readonly string[]) {
@@ -132,10 +136,27 @@ async function ensureFile(relativePath: string) {
   }
 }
 
+async function checkLocaleMessages() {
+  for (const localeFile of LOCALE_FILES) {
+    let messages: Record<string, { message?: unknown }>;
+    try {
+      messages = JSON.parse(await readFile(join(SOURCE_DIR, localeFile), "utf8"));
+    } catch (error) {
+      fail(`Chromium extension check failed. ${localeFile} is invalid JSON: ${String(error)}`);
+    }
+    for (const key of ["extensionName", "extensionDescription"]) {
+      if (typeof messages[key]?.message !== "string" || !messages[key].message.trim()) {
+        fail(`Chromium extension check failed. ${localeFile} must define a non-empty ${key} message.`);
+      }
+    }
+  }
+}
+
 async function checkExtension() {
   for (const file of EXTENSION_FILES) {
     await ensureFile(file);
   }
+  await checkLocaleMessages();
 
   const manifest = await readManifest();
   const background = await readFile(join(SOURCE_DIR, "background.js"), "utf8");
@@ -144,8 +165,14 @@ async function checkExtension() {
   if (manifest.manifest_version !== 3) {
     fail("Chromium extension check failed. manifest_version must be 3.");
   }
-  if (!manifest.name?.trim()) {
-    fail("Chromium extension check failed. manifest name is required.");
+  if (manifest.name !== "__MSG_extensionName__") {
+    fail("Chromium extension check failed. manifest name must use the extensionName locale message.");
+  }
+  if (manifest.description !== "__MSG_extensionDescription__") {
+    fail("Chromium extension check failed. manifest description must use the extensionDescription locale message.");
+  }
+  if (manifest.default_locale !== "en") {
+    fail("Chromium extension check failed. default_locale must be en.");
   }
   getExtensionVersion(manifest);
   if (manifest.background?.service_worker !== "background.js") {
@@ -182,6 +209,14 @@ async function checkExtension() {
   if (!background.includes("incognito: tab.incognito")) {
     fail("Chromium extension check failed. Background worker must preserve the v1 incognito field for non-private payloads.");
   }
+  if (!background.includes("function toTrackableUrl") || !background.includes("url: fullUrl")) {
+    fail("Chromium extension check failed. Background worker must preserve the full active webpage URL.");
+  }
+  for (const forbiddenField of ["tabId:", "windowId:", "capturedAtMs:", "eventReason,"]) {
+    if (background.includes(forbiddenField)) {
+      fail(`Chromium extension check failed. Background worker must not send unnecessary field: ${forbiddenField}`);
+    }
+  }
   if (!background.includes("data?.ok !== true")) {
     fail("Chromium extension check failed. Background worker must require explicit ok:true bridge responses.");
   }
@@ -198,6 +233,9 @@ async function checkExtension() {
   }
   if (manifest.action?.default_popup !== "popup.html") {
     fail("Chromium extension check failed. action.default_popup must be popup.html.");
+  }
+  if (manifest.action?.default_title !== "__MSG_extensionName__") {
+    fail("Chromium extension check failed. action.default_title must use the extensionName locale message.");
   }
 
   console.log("Chromium extension check passed.");
@@ -335,12 +373,11 @@ async function packageExtension() {
   const manifest = await readManifest();
   const version = getExtensionVersion(manifest);
   const packageFile = getPackageFile(version);
-  const packageRootName = getPackageRootName(version);
   const extensionFiles = await listFiles(BUILD_DIR);
   const zipEntries: ZipEntry[] = [
     ...extensionFiles.map((file) => ({
       sourcePath: join(BUILD_DIR, file),
-      archivePath: `${packageRootName}/${file}`,
+      archivePath: file,
     })),
   ];
   await cleanExistingPackages();

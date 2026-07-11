@@ -1,0 +1,8 @@
+{
+  "extensionName": {
+    "message": "Patina Web Sync"
+  },
+  "extensionDescription": {
+    "message": "自动将当前非私密活动网站同步到本机 Patina，用于补全时间记录。"
+  }
+}

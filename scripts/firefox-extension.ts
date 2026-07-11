@@ -13,6 +13,10 @@ const REQUIRED_ICON_FILES = {
   "64": "icons/icon-64.png",
   "128": "icons/icon-128.png",
 } as const;
+const LOCALE_FILES = [
+  "_locales/en/messages.json",
+  "_locales/zh_CN/messages.json",
+] as const;
 const EXTENSION_FILES = [
   "manifest.json",
   "background.js",
@@ -20,12 +24,15 @@ const EXTENSION_FILES = [
   "options.js",
   "popup.html",
   "popup.js",
+  ...LOCALE_FILES,
   ...Object.values(REQUIRED_ICON_FILES),
 ] as const;
 
 type FirefoxManifest = {
   manifest_version?: number;
   name?: string;
+  description?: string;
+  default_locale?: string;
   version?: string;
   background?: {
     scripts?: string[];
@@ -39,12 +46,18 @@ type FirefoxManifest = {
   icons?: Record<string, string>;
   options_page?: string;
   action?: {
+    default_title?: string;
     default_popup?: string;
     default_icon?: Record<string, string>;
   };
   browser_specific_settings?: {
     gecko?: {
       id?: string;
+      strict_min_version?: string;
+      data_collection_permissions?: {
+        required?: string[];
+        optional?: string[];
+      };
     };
   };
   content_security_policy?: {
@@ -86,10 +99,6 @@ function getPackageFile(version: string) {
 
 function getSignedPackageFile(version: string) {
   return join(PACKAGE_DIR, `patina-firefox-extension-v${version}.xpi`);
-}
-
-function getPackageRootName(version: string) {
-  return `patina-firefox-extension-v${version}`;
 }
 
 function assertExactStringSet(label: string, actual: unknown, expected: readonly string[]) {
@@ -159,10 +168,27 @@ async function ensureFile(relativePath: string) {
   }
 }
 
+async function checkLocaleMessages() {
+  for (const localeFile of LOCALE_FILES) {
+    let messages: Record<string, { message?: unknown }>;
+    try {
+      messages = JSON.parse(await readFile(join(SOURCE_DIR, localeFile), "utf8"));
+    } catch (error) {
+      fail(`Firefox extension check failed. ${localeFile} is invalid JSON: ${String(error)}`);
+    }
+    for (const key of ["extensionName", "extensionDescription"]) {
+      if (typeof messages[key]?.message !== "string" || !messages[key].message.trim()) {
+        fail(`Firefox extension check failed. ${localeFile} must define a non-empty ${key} message.`);
+      }
+    }
+  }
+}
+
 async function checkExtension() {
   for (const file of EXTENSION_FILES) {
     await ensureFile(file);
   }
+  await checkLocaleMessages();
 
   const manifest = await readManifest();
   const background = await readFile(join(SOURCE_DIR, "background.js"), "utf8");
@@ -171,8 +197,14 @@ async function checkExtension() {
   if (manifest.manifest_version !== 3) {
     fail("Firefox extension check failed. manifest_version must be 3.");
   }
-  if (!manifest.name?.trim()) {
-    fail("Firefox extension check failed. manifest name is required.");
+  if (manifest.name !== "__MSG_extensionName__") {
+    fail("Firefox extension check failed. manifest name must use the extensionName locale message.");
+  }
+  if (manifest.description !== "__MSG_extensionDescription__") {
+    fail("Firefox extension check failed. manifest description must use the extensionDescription locale message.");
+  }
+  if (manifest.default_locale !== "en") {
+    fail("Firefox extension check failed. default_locale must be en.");
   }
   getExtensionVersion(manifest);
   if (manifest.background?.service_worker) {
@@ -215,6 +247,17 @@ async function checkExtension() {
   if (!background.includes("incognito: tab.incognito")) {
     fail("Firefox extension check failed. Background script must preserve the v1 incognito field for non-private payloads.");
   }
+  if (!background.includes("function toTrackableUrl") || !background.includes("url: fullUrl")) {
+    fail("Firefox extension check failed. Background script must preserve the full active webpage URL.");
+  }
+  if (!background.includes("browser.permissions.getAll") || !background.includes("technicalAndInteraction")) {
+    fail("Firefox extension check failed. Technical data must be gated by the optional built-in consent permission.");
+  }
+  for (const forbiddenField of ["tabId:", "windowId:", "capturedAtMs:", "eventReason,"]) {
+    if (background.includes(forbiddenField)) {
+      fail(`Firefox extension check failed. Background script must not send unnecessary field: ${forbiddenField}`);
+    }
+  }
   if (!background.includes("data?.ok !== true")) {
     fail("Firefox extension check failed. Background script must require explicit ok:true bridge responses.");
   }
@@ -235,9 +278,26 @@ async function checkExtension() {
   if (manifest.action?.default_popup !== "popup.html") {
     fail("Firefox extension check failed. action.default_popup must be popup.html.");
   }
+  if (manifest.action?.default_title !== "__MSG_extensionName__") {
+    fail("Firefox extension check failed. action.default_title must use the extensionName locale message.");
+  }
   if (manifest.browser_specific_settings?.gecko?.id !== "web-sync@patina.local") {
     fail("Firefox extension check failed. browser_specific_settings.gecko.id must stay stable.");
   }
+  const geckoSettings = manifest.browser_specific_settings?.gecko;
+  if (geckoSettings?.strict_min_version !== "142.0") {
+    fail("Firefox extension check failed. browser_specific_settings.gecko.strict_min_version must be 142.0.");
+  }
+  assertExactStringSet(
+    "browser_specific_settings.gecko.data_collection_permissions.required",
+    geckoSettings?.data_collection_permissions?.required,
+    ["authenticationInfo", "browsingActivity", "searchTerms", "websiteContent"],
+  );
+  assertExactStringSet(
+    "browser_specific_settings.gecko.data_collection_permissions.optional",
+    geckoSettings?.data_collection_permissions?.optional,
+    ["technicalAndInteraction"],
+  );
 
   console.log("Firefox extension check passed.");
 }
@@ -374,12 +434,11 @@ async function packageExtension() {
   const manifest = await readManifest();
   const version = getExtensionVersion(manifest);
   const packageFile = getPackageFile(version);
-  const packageRootName = getPackageRootName(version);
   const extensionFiles = await listFiles(BUILD_DIR);
   const zipEntries: ZipEntry[] = [
     ...extensionFiles.map((file) => ({
       sourcePath: join(BUILD_DIR, file),
-      archivePath: `${packageRootName}/${file}`,
+      archivePath: file,
     })),
   ];
   await cleanExistingUnsignedPackages();
@@ -397,6 +456,41 @@ function requireSigningEnv(name: string) {
 
 function getWebExtEntrypoint() {
   return join(REPO_ROOT, "node_modules", "web-ext", "bin", "web-ext.js");
+}
+
+async function lintExtension() {
+  await checkExtension();
+  const webExtEntrypoint = getWebExtEntrypoint();
+  const args = [
+    webExtEntrypoint,
+    "lint",
+    "--source-dir",
+    SOURCE_DIR,
+    "--warnings-as-errors",
+    "--no-input",
+  ];
+
+  await new Promise<void>((resolve, reject) => {
+    const child = spawn(process.execPath, args, {
+      cwd: REPO_ROOT,
+      env: {
+        ...process.env,
+        NO_UPDATE_NOTIFIER: "1",
+      },
+      stdio: "inherit",
+    });
+
+    child.on("error", reject);
+    child.on("close", (code) => {
+      if (code === 0) {
+        resolve();
+        return;
+      }
+      reject(new Error(`web-ext lint exited with code ${code ?? "unknown"}.`));
+    });
+  }).catch((error) => {
+    fail(`Firefox extension lint failed. ${error instanceof Error ? error.message : String(error)}`);
+  });
 }
 
 async function runWebExtSign() {
@@ -460,6 +554,8 @@ const command = process.argv[2] ?? "check";
 
 if (command === "check") {
   await checkExtension();
+} else if (command === "lint") {
+  await lintExtension();
 } else if (command === "build") {
   await buildExtension();
 } else if (command === "package") {
