@@ -167,6 +167,15 @@ async function checkDocumentation() {
     if (description.length < 250 || description.length > 10_000) {
       report(`${heading} must contain 250-10000 characters for Edge; found ${description.length}.`);
     }
+
+    const browserNames = ["Chrome", "Edge", "Firefox", "Safari"];
+    for (const browserName of browserNames) {
+      if (description.toLowerCase().includes(browserName.toLowerCase())) {
+        report(
+          `${heading} must not reference another browser in public store copy; found ${browserName}.`,
+        );
+      }
+    }
   }
 }
 
