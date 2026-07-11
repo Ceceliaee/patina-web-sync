@@ -171,14 +171,18 @@ The extension never sends tab ID, window ID, capture timestamp, or event reason.
 
 ## Chrome Web Store Fields
 
+- Submitted version: `0.2.0`; Item ID: `gimdckblhckibmeklhemgccabmbnoemd`; submitted on July 11, 2026 and awaiting review with automatic publishing after approval enabled.
 - Package: `dist/extensions/chromium/patina-chromium-extension-vX.Y.Z.zip`
 - Localized listings: English and Simplified Chinese, backed by `_locales/en` and `_locales/zh_CN` in the package.
-- Category: Productivity
+- Category: `工作流程与规划` (`Workflow & Planning`), the closest current Chrome Web Store category for local time tracking and productivity workflows.
 - Store icon: `store-assets/chrome-web-store/extension-icon-128.png`
 - Upload screenshot: `store-assets/chrome-web-store/screenshots/01-options-ready-en-US-1280x800.png`
 - Small promotional tile: `store-assets/chrome-web-store/small-promo-tile.png`
 - Marquee image and video: omit for the first submission unless the dashboard makes one mandatory.
-- Publishing: use deferred publishing for the first review when the dashboard offers it.
+- Privacy practices: single purpose and all permission justifications completed; remote code `No`; authentication information, web history, and website content disclosed; all three Limited Use certifications accepted; shared privacy policy URL supplied.
+- Distribution: Free, Public, all regions, no trusted-tester restriction.
+- Reviewer testing: no username or password; local Patina setup and `https://example.com/?review=test#full-url` verification steps supplied.
+- Publishing: automatically publish after the first review succeeds.
 
 ## Firefox AMO Fields
 
