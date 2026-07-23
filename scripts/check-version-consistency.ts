@@ -92,4 +92,22 @@ if (expectedVersion && version !== expectedVersion) {
   fail(`Version check failed. Release version ${expectedVersion} does not match repository version ${version}.`);
 }
 
+const engines = packageJson.engines;
+if (
+  typeof engines !== "object"
+  || engines === null
+  || Array.isArray(engines)
+  || (engines as JsonObject).node !== ">=20.0.0"
+  || (engines as JsonObject).npm !== ">=8.0.0"
+) {
+  fail("Version check failed. package.json engines must require Node.js >=20.0.0 and npm >=8.0.0.");
+}
+
+for (const readmePath of ["README.md", "README.zh-CN.md"]) {
+  const readme = await readFile(join(REPO_ROOT, readmePath), "utf8");
+  if (!readme.includes("[Node.js](https://nodejs.org/) 20+") || !readme.includes("npm 8+")) {
+    fail(`Version check failed. ${readmePath} must document the supported Node.js 20+ and npm 8+ toolchain.`);
+  }
+}
+
 console.log(`Version consistency check passed: ${version}.`);

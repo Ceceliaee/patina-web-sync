@@ -204,4 +204,69 @@ assert(firefoxPrivateRequests.length === 0, "Private Firefox tabs must not send 
 const internalRequests = await runChromium({ ...regularTab, url: "chrome://extensions" });
 assert(internalRequests.length === 0, "Browser-internal pages must not send a request.");
 
+const maintainerDocs = [
+  {
+    path: "src/chromium/README.md",
+    required: [
+      "chromewebstore.google.com/detail/patina-web-sync/gimdckblhckibmeklhemgccabmbnoemd",
+      "microsoftedge.microsoft.com/addons/detail/gogmlpjhbfjghilmpcciedplifdiibai",
+      "The zip root contains `manifest.json`.",
+      "Tab/window id, timestamps, and event reason stay out of the payload.",
+    ],
+    forbidden: [
+      "not published in either store yet",
+      "The zip contains a versioned extension folder.",
+    ],
+  },
+  {
+    path: "src/chromium/README.zh-CN.md",
+    required: [
+      "chromewebstore.google.com/detail/patina-web-sync/gimdckblhckibmeklhemgccabmbnoemd",
+      "microsoftedge.microsoft.com/addons/detail/gogmlpjhbfjghilmpcciedplifdiibai",
+      "zip 根目录直接包含 `manifest.json`",
+      "不发送标签页/窗口 ID、采集时间或事件原因",
+    ],
+    forbidden: [
+      "当前扩展尚未发布到这两个商店",
+      "zip 内包含一个带版本号的扩展目录",
+    ],
+  },
+  {
+    path: "src/firefox/README.md",
+    required: [
+      "addons.mozilla.org/firefox/addon/patina-web-sync/",
+      "public listed AMO `.xpi`",
+      "The formal GitHub Release XPI is not signed locally.",
+      "Tab/window id, timestamps, and event reason stay out of the payload.",
+    ],
+    forbidden: [
+      "the extension is not listed on AMO yet",
+      "user-facing GitHub Release package is a Mozilla AMO `unlisted` signed `.xpi`",
+    ],
+  },
+  {
+    path: "src/firefox/README.zh-CN.md",
+    required: [
+      "addons.mozilla.org/zh-CN/firefox/addon/patina-web-sync/",
+      "AMO 同版本公开 listed XPI",
+      "正式 GitHub Release XPI 不在本地重新签名",
+      "不发送标签页/窗口 ID、采集时间或事件原因",
+    ],
+    forbidden: [
+      "当前扩展尚未 listed on AMO",
+      "GitHub Release 用户安装包是经 Mozilla AMO `unlisted` 签名的 `.xpi`",
+    ],
+  },
+] as const;
+
+for (const doc of maintainerDocs) {
+  const content = await readFile(join(REPO_ROOT, doc.path), "utf8");
+  for (const text of doc.required) {
+    assert(content.includes(text), `${doc.path} must include current distribution or payload text: ${text}`);
+  }
+  for (const text of doc.forbidden) {
+    assert(!content.includes(text), `${doc.path} still contains retired distribution or payload text: ${text}`);
+  }
+}
+
 console.log("Runtime privacy check passed.");

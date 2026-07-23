@@ -4,6 +4,10 @@
   "private": true,
   "type": "module",
   "description": "Browser extension companion for Patina local-first desktop time tracking.",
+  "engines": {
+    "node": ">=20.0.0",
+    "npm": ">=8.0.0"
+  },
   "scripts": {
     "extension:chromium:check": "node --experimental-strip-types scripts/chromium-extension.ts check",
     "extension:chromium:build": "node --experimental-strip-types scripts/chromium-extension.ts build",
@@ -17,7 +21,8 @@
     "check:runtime-privacy": "node --experimental-strip-types scripts/check-runtime-privacy.ts",
     "check:store-assets": "node --experimental-strip-types scripts/check-store-assets.ts",
     "check": "npm run check:versions && npm run extension:chromium:check && npm run extension:firefox:check && npm run extension:firefox:lint && npm run check:runtime-privacy && npm run check:store-assets",
-    "release:check": "npm run check && npm run extension:chromium:package && npm run extension:firefox:package"
+    "release:notes": "node --experimental-strip-types scripts/write-release-notes.ts",
+    "release:check": "npm run check && npm run release:notes && npm run extension:chromium:package && npm run extension:firefox:package"
   },
   "repository": {
     "type": "git",
