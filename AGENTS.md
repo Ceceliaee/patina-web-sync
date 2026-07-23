@@ -12,6 +12,7 @@ These instructions apply to the whole repository unless the user gives an explic
 - Extension UI work must follow `docs/quiet-pro-component-guidelines.md`.
 - Versioning, packaging, AMO signing, and release work must follow `docs/versioning-and-release-policy.md`.
 - Patina bridge compatibility must follow `docs/web-activity-protocol.md`.
+- Cross-repository release acceptance with Patina must follow the acceptance contract in `docs/versioning-and-release-policy.md`.
 - Treat top-level long-lived docs under `docs/` as the current source of truth.
 
 ## Local Agent Files
@@ -52,10 +53,12 @@ These instructions apply to the whole repository unless the user gives an explic
 - Keep `package.json`, `src/chromium/manifest.json`, and `src/firefox/manifest.json` versions aligned.
 - Use `npm run check:versions` to verify version alignment.
 - Keep `package.json` `private: true` unless npm publication becomes an explicit release goal.
-- Do not run `npm run extension:firefox:sign` unless preparing a real Firefox release with a forward manifest version.
+- Do not run `npm run extension:firefox:sign` for a listed Firefox release or GitHub Release. It is only an explicit unlisted-testing helper, and still requires a forward manifest version.
 - `npm run release:check` may create local unsigned/package artifacts, but it must not perform AMO signing.
 - User-facing Firefox release assets must be signed `.xpi` files; unsigned Firefox zip files are development artifacts only.
-- If a GitHub Release already exists for a version, do not try to re-sign the same Firefox manifest version.
+- Publish a version tag only after the maintainer confirms that the same version is public in Chrome Web Store, Firefox Add-ons, and Microsoft Edge Add-ons.
+- Tag pushes publish GitHub Releases automatically. The workflow must download the public listed Firefox XPI from AMO instead of signing the version again.
+- If a same-tag GitHub Release already exists, reruns may refresh its notes and same-version assets from the verified workflow outputs; they must not sign a new Firefox artifact.
 
 ## Validation
 

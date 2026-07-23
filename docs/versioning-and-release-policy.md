@@ -12,7 +12,7 @@ Patina Web Sync 是公开 GitHub 仓库，但目前不发布为 npm 包。除非
 - Git tag `vX.Y.Z`
 - GitHub Release 标题 `Patina Web Sync vX.Y.Z`
 
-独立仓库初始版本为 `0.1.1`，它匹配当前 Firefox 扩展版本，并把 Chromium 提升到同一版本。浏览器扩展版本使用数字 `X.Y.Z` 或 `X.Y.Z.N` 格式。
+独立仓库初始版本为 `0.1.1`，它在迁仓时统一了 Chromium 与 Firefox 版本。浏览器扩展版本使用数字 `X.Y.Z` 或 `X.Y.Z.N` 格式。
 
 ## Changelog 规则
 
@@ -46,13 +46,13 @@ Firefox 版本需要额外谨慎。同一个稳定 Gecko id `web-sync@patina.loc
 
 真正上传 AMO listed submission 或运行任何签名流程前，必须在 AMO Developer Hub 检查该稳定 Gecko id 已接受、已上传或已签名的最高版本。目标 manifest version 必须严格更高；本地 tag 或 changelog 不能替代这一外部事实检查。Chrome Web Store 和 Edge Partner Center 也要检查同版本草稿或上传记录，避免在包内容仍变化时占用版本。
 
-不要为了验证迁移或普通文档变更而运行 AMO 签名。只有在准备真实 Firefox 发布，并确认目标版本向前移动后，才运行 `npm run extension:firefox:sign`。
+不要为了验证迁移、普通文档变更、listed 商店发布或 GitHub Release 而运行 `npm run extension:firefox:sign`。该命令只用于明确的 unlisted 测试，并且仍需先确认目标版本严格向前移动。
 
 ## 浏览器商店提交
 
 浏览器商店提交准备遵循 `docs/store-submission.md`。Chrome Web Store、Firefox AMO 和 Microsoft Edge Add-ons 的商店页文案、隐私政策、审核说明、素材与扩展包行为必须保持一致。
 
-Firefox AMO 公开上架提交与本仓库的未公开签名辅助流程是不同流程。准备 AMO 公开上架时，默认使用 AMO 提交页面选择 `On this site` 并让 AMO validator 检查上传包；不要把 `npm run extension:firefox:sign` 当作 AMO 公开上架的默认步骤。
+Firefox AMO 公开上架提交与本仓库的未公开测试签名辅助流程是不同流程。准备 AMO 公开上架时，默认使用 AMO 提交页面选择 `On this site` 并让 AMO validator 检查上传包；不要把 `npm run extension:firefox:sign` 当作 AMO 公开上架或 GitHub Release 的步骤。
 
 Listed 与 unlisted 共享稳定 Gecko id 的版本历史；任一路径已接受或签名的版本都视为已占用。不得在另一条路径重复使用相同 version。Firefox 142+ 的 built-in data consent、最低版本和数据类别也属于发布候选的一部分，修改后必须前进版本并重新走 validator。
 
@@ -90,16 +90,35 @@ patina-firefox-extension-vX.Y.Z.xpi
 
 正式发布中的 Firefox `.xpi` 必须由 AMO 签名产出。未签名 Firefox zip 只是开发产物，不应作为面向用户的发布附件。
 
+GitHub Release 使用 AMO 已公开的同版本 listed XPI。发布工作流必须通过 AMO 公开版本 API 获取下载地址和 SHA-256，确认版本渠道为 `listed`、文件状态为 `public`，校验下载文件哈希、manifest version 和稳定 Gecko id 后再收集附件。不得对已经上传或发布到 AMO 的版本再次执行 unlisted 签名。
+
+GitHub Release 正文必须由 `CHANGELOG.md` 对应正式版本节生成。工作流重跑时允许复用同 tag 的现有 Release，覆盖同名附件并刷新正文，以修复首次发布中断留下的草稿或不完整附件；重跑不得重新签名 Firefox。
+
 ## 发布流程
 
 1. 更新 `CHANGELOG.md`。
 2. 确认 `package.json` 和两个浏览器 manifest 都使用目标版本。
 3. 运行 `npm run check`。
 4. 运行 `npm run release:check` 做本地打包验证。
-5. 发布 Firefox 附件前，确认 GitHub 仓库 secrets 已配置 AMO 凭据。
-6. 提交发布准备变更。
-7. 推送 tag `vX.Y.Z`，或针对已有版本 tag 运行发布工作流。
-8. 让 GitHub Actions 校验版本一致性、打包 Chromium、签名 Firefox、收集发布附件并发布 GitHub Release。如果 `vX.Y.Z` 已存在，工作流会跳过发布，避免再次签同一个 Firefox manifest 版本。
+5. 提交发布候选，并把该提交生成的对应包分别提交到 Chrome Web Store、Firefox Add-ons 和 Microsoft Edge Add-ons。
+6. 等待三个商店中的同一版本全部审核通过并公开。审核期间不要用相同版本重新生成内容不同的上传包。
+7. 维护者确认三个商店全部通过后，再为发布候选提交创建并推送 tag `vX.Y.Z`。
+8. Tag push 自动触发 `Publish Release`：GitHub Actions 校验版本一致性、打包 Chromium、从 AMO 下载同版本公开 listed XPI，校验 AMO SHA-256、manifest version 和稳定 Gecko id，然后一次性发布完整 GitHub Release。
+
+`Publish Release` 不提供人工触发入口，也不持有 AMO 签名凭据。若维护者过早推送 tag，AMO API 尚未返回该版本的公开 listed XPI，工作流必须在创建 GitHub Release 前失败。若同 tag GitHub Release 已存在，工作流复用它并刷新经过验证的正文与同版本附件。
+
+## Patina Web Sync 跨仓签收契约
+
+一个 Patina Web Sync 版本只有同时满足以下条件，才视为完成跨仓发布签收：
+
+1. 发布候选源码已经固定，`package.json` 与两个 manifest 使用同一版本。
+2. 同一版本已在 Chrome Web Store、Firefox Add-ons 和 Microsoft Edge Add-ons 全部审核通过并公开。
+3. 维护者确认三店状态后，为对应发布候选提交创建并推送 `vX.Y.Z` tag。
+4. Tag 自动工作流已经发布完整的 Patina Web Sync GitHub Release，tag、Release 标题与附件版本一致。
+5. Firefox Release 附件来自 AMO 的同版本公开 listed XPI，并已校验 AMO SHA-256、manifest version 与稳定 Gecko id。
+6. 若版本改变 Web Activity 协议，Patina 接收端兼容必须先落地，两仓的 `docs/web-activity-protocol.md` 必须保持一致。
+
+完成签收不绑定两个项目的版本号，也不要求 Patina 与 Patina Web Sync 同日发布。Patina Release 不携带扩展附件；Patina 只消费稳定商店入口、扩展 Release 和双方已对齐的本机协议。普通扩展发布不得依赖尚未发布的 Patina 接收端行为。
 
 ## 与 Patina 发布的关系
 

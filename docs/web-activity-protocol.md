@@ -12,6 +12,7 @@ Patina 拥有接收端和本地数据行为。Patina Web Sync 拥有浏览器扩
 - 客户端连接到 `http://127.0.0.1:<port>` 或 `http://localhost:<port>`。
 - 鉴权使用 Patina Settings 显示的 bearer token。
 - 该协议不是云同步、账号、分析或远程采集 API。
+- 浏览器扩展发布由公开的 [`patina-web-sync`](https://github.com/Ceceliaee/patina-web-sync) companion 仓库负责。
 
 ## 接口
 
@@ -42,7 +43,7 @@ Content-Type: application/json
 
 当前扩展客户端在发送前会跳过 incognito/private 标签页。普通 `http` / `https` 标签页仍使用协议 v1 payload，并可继续携带 `incognito: false` 字段以保持 shape 兼容。
 
-Chromium 系客户端发送 `browserClientId`、`browserKind` 和 `extensionVersion`，用于本机客户端区分和兼容诊断。Firefox 140+ 将这些字段归为可选的 `technicalAndInteraction` 数据；只有用户授予对应内置权限时才发送。Patina 接收端必须兼容这三个字段缺失。
+Chromium 系客户端发送 `browserClientId`、`browserKind` 和 `extensionVersion`，用于本机客户端区分和兼容诊断。Firefox 142+ 客户端将这些字段归为可选的 `technicalAndInteraction` 数据；只有用户授予对应内置权限时才发送。Patina 接收端必须兼容这三个字段缺失。
 
 新客户端不再发送 `tabId`、`windowId`、`capturedAtMs` 或 `eventReason`。接收端可以继续宽容解析旧客户端字段，但不得要求新客户端恢复这些非必要字段。
 
@@ -95,4 +96,4 @@ Error response body 使用 `ok: false`、稳定的 `code` 和人类可读的 `me
 2. Patina Web Sync 开始发送新的 shape。
 3. 只有经过单独兼容性决策后，才移除旧兼容。
 
-Firefox AMO 签名和浏览器商店审核可能让扩展发布慢于 Patina release，因此 Patina 不应要求普通桌面更新必须同日升级扩展。
+浏览器商店审核可能让扩展发布慢于 Patina release，因此 Patina 不应要求普通桌面更新必须同日升级扩展。
