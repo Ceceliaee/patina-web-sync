@@ -40,10 +40,15 @@ Patina can automatically record foreground apps, but browser activity usually ap
 
 Patina Web Sync is designed to work with the Patina desktop app. Install and open Patina first.
 
-Browser-store releases are still being prepared. Before store listing, use GitHub Releases or local installation:
+Choose your browser and install Patina Web Sync from its extension store:
 
-- Chromium / Chrome / Edge: download the Chromium extension zip, extract it, then load the extracted directory from the browser extension management page.
-- Firefox: use the AMO-signed `.xpi` from GitHub Releases and install it from the Firefox Add-ons Manager.
+<p align="center">
+  <a href="https://chromewebstore.google.com/detail/patina-web-sync/gimdckblhckibmeklhemgccabmbnoemd"><img src=".github/assets/store-badges/chrome-web-store.png" alt="Available in the Chrome Web Store" height="36"></a>
+  <a href="https://addons.mozilla.org/firefox/addon/patina-web-sync/"><img src=".github/assets/store-badges/firefox-add-ons.svg" alt="Get the add-on for Firefox" height="36"></a>
+  <a href="https://microsoftedge.microsoft.com/addons/detail/gogmlpjhbfjghilmpcciedplifdiibai"><img src=".github/assets/store-badges/edge-add-ons.png" alt="Get it from Microsoft Edge Add-ons" height="36"></a>
+</p>
+
+If you cannot use these stores, install manually from [GitHub Releases](https://github.com/Ceceliaee/patina-web-sync/releases/latest).
 
 ## Connect To Patina
 
@@ -101,7 +106,7 @@ Patina Web Sync currently focuses on Patina's browser companion sync:
 - Chromium-family browser extension target
 - Firefox-family browser extension target
 - Local Patina Web Sync pairing and sync
-- Chrome Web Store, Firefox AMO, and Microsoft Edge Add-ons listing preparation
+- Distribution through the Chrome Web Store, Firefox Add-ons, and Microsoft Edge Add-ons
 
 It does not own the Patina desktop runtime, SQLite storage, backup/restore, History, Data, Settings, or Classification read models. Those capabilities are maintained in the Patina main repository.
 
@@ -109,7 +114,8 @@ It does not own the Patina desktop runtime, SQLite storage, backup/restore, Hist
 
 ### Requirements
 
-- [Node.js](https://nodejs.org/) 18+
+- [Node.js](https://nodejs.org/) 20+
+- npm 8+
 
 ### Install Dependencies
 

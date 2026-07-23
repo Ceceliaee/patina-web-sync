@@ -12,9 +12,9 @@ Patina Web Sync 会把 Chromium 系浏览器中的当前活动网页同步到本
 
 ## 当前分发方式
 
-Patina Web Sync 当前通过 GitHub Releases 分发，并采用手动本地安装。
+请通过 [Chrome 应用商店](https://chromewebstore.google.com/detail/patina-web-sync/gimdckblhckibmeklhemgccabmbnoemd) 或 [Microsoft Edge 加载项](https://microsoftedge.microsoft.com/addons/detail/gogmlpjhbfjghilmpcciedplifdiibai)安装 Patina Web Sync。
 
-Chrome Web Store 和 Microsoft Edge Add-ons 上架材料统一放在仓库根目录的 `STORE_LISTING.md`；当前扩展尚未发布到这两个商店。
+GitHub Releases 提供带版本号的 Chromium zip，作为无法使用商店时的手动安装后备。商店页源文案统一维护在仓库根目录的 `STORE_LISTING.md`。
 
 ## 源码结构
 
@@ -51,18 +51,18 @@ dist/extensions/chromium/patina-chromium-extension-vX.Y.Z.zip
 ```
 
 文件名中的版本号来自 `manifest.json`。
-zip 内包含一个带版本号的扩展目录。用户需要在浏览器扩展页加载解压后的目录，并在 Patina 设置页中继续查看网页同步说明。
+zip 根目录直接包含 `manifest.json`。手动安装时，解压 zip，在浏览器扩展页加载解压目录，并在 Patina 设置页中继续查看网页同步说明。
 
 ## 范围
 
-- 只向本机 Patina 发送非私密活动标签页的 URL、标题、favicon、协议 `incognito: false` 标记、标签页/窗口 id、浏览器类型和时间戳。
+- 只向本机 Patina 发送非私密活动标签页的完整 URL、标题、favicon 信息、协议 `incognito: false` 标记、本机浏览器客户端标识、浏览器类型和扩展版本；不发送标签页/窗口 ID、采集时间或事件原因。
 - 无痕/私密标签页会在扩展端发送本机网页同步请求之前被过滤。
 - 活动标签页变化时使用一次本地 HTTP POST；时间归属由 Patina 的前台应用追踪器处理。
 - 使用浏览器本地 favicon 缓存，把活动标签页图标转成本地数据用于图标颜色。
 - 不读取页面 DOM、表单值、截图、剪贴板、浏览历史库或网页正文。
 - 扩展配置保存在浏览器的本地扩展存储中。
 
-## 浏览器商店草案
+## 浏览器商店资料
 
 - 共用隐私政策：[`../../PRIVACY.md`](../../PRIVACY.md)
-- 共用商店信息草案：[`../../STORE_LISTING.md`](../../STORE_LISTING.md)
+- 共用商店页源文案：[`../../STORE_LISTING.md`](../../STORE_LISTING.md)

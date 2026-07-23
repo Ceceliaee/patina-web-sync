@@ -12,10 +12,9 @@ Patina Web Sync sends the active webpage from a Firefox-family browser to the lo
 
 ## Current Distribution
 
-Patina Web Sync is currently distributed through GitHub Releases and manual local installation.
-For Firefox-family browsers, the user-facing GitHub Release package is a Mozilla AMO `unlisted` signed `.xpi`.
+Install Patina Web Sync from [Firefox Add-ons](https://addons.mozilla.org/firefox/addon/patina-web-sync/).
 
-Firefox AMO listed submission materials are kept in the repository-level `STORE_LISTING.md`, but the extension is not listed on AMO yet.
+GitHub Releases mirror the same-version public listed AMO `.xpi` as a manual-install fallback. Store listing source material is maintained in the repository-level `STORE_LISTING.md`.
 
 ## Source Layout
 
@@ -53,20 +52,21 @@ dist/extensions/firefox/patina-firefox-extension-vX.Y.Z.zip
 
 This zip is only for local development, temporary debugging, or manual investigation. It is not uploaded as the Firefox user-facing GitHub Release asset.
 
-Build the signed `.xpi`:
+The formal GitHub Release XPI is not signed locally. After all three stores are public, the tag workflow downloads the same-version public listed XPI from AMO and verifies its hash, manifest version, and Gecko ID.
+
+For explicit unlisted testing only, with a new version that has not already been used on AMO:
 
 ```bash
 WEB_EXT_API_KEY=... WEB_EXT_API_SECRET=... npm run extension:firefox:sign
 ```
 
-The signed `.xpi` is generated at:
+The unlisted test `.xpi` is generated at:
 
 ```text
 dist/extensions/firefox/patina-firefox-extension-vX.Y.Z.xpi
 ```
 
-The version in the file name comes from `manifest.json`.
-Formal GitHub Releases upload only the signed `.xpi`. Users install it through Firefox Add-ons Manager's Install Add-on From File flow, then follow the Web Sync instructions in Patina Settings.
+The version in the file name comes from `manifest.json`. Do not use this unlisted test helper to create a listed store submission or formal GitHub Release asset.
 
 ## Scope
 
@@ -77,7 +77,7 @@ Formal GitHub Releases upload only the signed `.xpi`. Users install it through F
 - Does not read page DOM, form values, screenshots, clipboard, history database, or page content.
 - Stores extension configuration in the browser's local extension storage.
 
-## Firefox AMO Draft
+## Firefox Add-ons Resources
 
 - Shared privacy policy: [`../../PRIVACY.md`](../../PRIVACY.md)
-- Shared store listing draft: [`../../STORE_LISTING.md`](../../STORE_LISTING.md)
+- Shared store listing source: [`../../STORE_LISTING.md`](../../STORE_LISTING.md)

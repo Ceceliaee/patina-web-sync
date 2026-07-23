@@ -40,10 +40,15 @@ Patina 可以自动记录前台应用，但浏览器通常只会显示为 Chrome
 
 Patina Web Sync 需要和 Patina 桌面应用配合使用。请先安装并打开 Patina。
 
-浏览器商店版本仍在准备中。商店上架前，以 GitHub Releases 和本地安装为准：
+选择所用浏览器，从对应扩展商店安装 Patina Web Sync：
 
-- Chromium / Chrome / Edge：下载 Chromium 扩展 zip，解压后在浏览器扩展管理页加载解压目录。
-- Firefox：使用 GitHub Release 中经 AMO 签名的 `.xpi`，通过 Firefox 附加组件管理器从文件安装。
+<p align="center">
+  <a href="https://chromewebstore.google.com/detail/patina-web-sync/gimdckblhckibmeklhemgccabmbnoemd"><img src=".github/assets/store-badges/chrome-web-store.png" alt="从 Chrome 应用商店安装 Patina Web Sync" height="36"></a>
+  <a href="https://addons.mozilla.org/zh-CN/firefox/addon/patina-web-sync/"><img src=".github/assets/store-badges/firefox-add-ons.svg" alt="从 Firefox 附加组件安装 Patina Web Sync" height="36"></a>
+  <a href="https://microsoftedge.microsoft.com/addons/detail/gogmlpjhbfjghilmpcciedplifdiibai"><img src=".github/assets/store-badges/edge-add-ons.png" alt="从 Microsoft Edge 加载项安装 Patina Web Sync" height="36"></a>
+</p>
+
+无法使用上述商店时，可前往 [GitHub Releases](https://github.com/Ceceliaee/patina-web-sync/releases/latest) 手动安装。
 
 ## 连接 Patina
 
@@ -101,7 +106,7 @@ Patina Web Sync 当前专注于 Patina 的浏览器伴生同步：
 - Chromium 系浏览器扩展目标
 - Firefox 系浏览器扩展目标
 - 本机 Patina Web Sync 配对与同步
-- Chrome Web Store、Firefox AMO、Microsoft Edge Add-ons 上架准备
+- 通过 Chrome 应用商店、Firefox 附加组件和 Microsoft Edge 加载项发布
 
 它不负责 Patina 桌面应用运行时、SQLite 存储、备份恢复、History、Data、Settings 或 Classification 读模型。这些能力由 Patina 主仓库维护。
 
@@ -109,7 +114,8 @@ Patina Web Sync 当前专注于 Patina 的浏览器伴生同步：
 
 ### 环境要求
 
-- [Node.js](https://nodejs.org/) 18+
+- [Node.js](https://nodejs.org/) 20+
+- npm 8+
 
 ### 安装依赖
 

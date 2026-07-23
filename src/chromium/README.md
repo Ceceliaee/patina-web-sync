@@ -12,9 +12,9 @@ Patina Web Sync sends the active webpage from a Chromium-based browser to the lo
 
 ## Current Distribution
 
-Patina Web Sync is currently distributed through GitHub Releases and manual local installation.
+Install Patina Web Sync from the [Chrome Web Store](https://chromewebstore.google.com/detail/patina-web-sync/gimdckblhckibmeklhemgccabmbnoemd) or [Microsoft Edge Add-ons](https://microsoftedge.microsoft.com/addons/detail/gogmlpjhbfjghilmpcciedplifdiibai).
 
-Chrome Web Store and Microsoft Edge Add-ons listing materials are kept in the repository-level `STORE_LISTING.md`, but the extension is not published in either store yet.
+GitHub Releases provide the versioned Chromium zip as a manual-install fallback. Store listing source material is maintained in the repository-level `STORE_LISTING.md`.
 
 ## Source Layout
 
@@ -51,7 +51,7 @@ dist/extensions/chromium/patina-chromium-extension-vX.Y.Z.zip
 ```
 
 The version in the file name comes from `manifest.json`.
-The zip contains a versioned extension folder. Users load that extracted folder in the browser extension page and follow the Web Sync instructions in Patina Settings.
+The zip root contains `manifest.json`. For manual installation, extract the zip, load that directory from the browser extension page, and follow the Web Sync instructions in Patina Settings.
 
 ## Scope
 
@@ -62,7 +62,7 @@ The zip contains a versioned extension folder. Users load that extracted folder 
 - Does not read page DOM, form values, screenshots, clipboard, history database, or page content.
 - Stores extension configuration in the browser's local extension storage.
 
-## Browser Store Drafts
+## Browser Store Resources
 
 - Shared privacy policy: [`../../PRIVACY.md`](../../PRIVACY.md)
-- Shared store listing draft: [`../../STORE_LISTING.md`](../../STORE_LISTING.md)
+- Shared store listing source: [`../../STORE_LISTING.md`](../../STORE_LISTING.md)
