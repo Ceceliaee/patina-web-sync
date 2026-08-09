@@ -1,8 +1,11 @@
 {
+  "extensionDescription": {
+    "message": "Automatically sync the active non-private website to local Patina for time tracking."
+  },
   "extensionName": {
     "message": "Patina Web Sync"
   },
-  "extensionDescription": {
+  "storeShortDescription": {
     "message": "Automatically sync the active non-private website to local Patina for time tracking."
   }
 }
