@@ -97,6 +97,8 @@ async function expectScreenshotSet(
 async function checkDocumentation() {
   const listing = await readFile(join(REPO_ROOT, "STORE_LISTING.md"), "utf8");
   const privacy = await readFile(join(REPO_ROOT, "PRIVACY.md"), "utf8");
+  const storeSubmission = await readFile(join(REPO_ROOT, "docs", "store-submission.md"), "utf8");
+  const releaseRecord = await readFile(join(REPO_ROOT, "docs", "store-releases", "0.2.0.md"), "utf8");
   const englishMessages = JSON.parse(
     await readFile(join(REPO_ROOT, "src", "chromium", "_locales", "en", "messages.json"), "utf8"),
   ) as Record<string, { message?: string }>;
@@ -121,6 +123,10 @@ async function checkDocumentation() {
 
   const staleListingText = [
     "registration was blocked",
+    "awaiting review",
+    "currently in review",
+    "Facts verified for candidate",
+    "Submitted version:",
     "store-assets/edge-logo-300.png",
     "store-assets/screenshot-options-",
     "store-assets/small-promo-tile.png",
@@ -128,6 +134,40 @@ async function checkDocumentation() {
   for (const staleText of staleListingText) {
     if (listing.includes(staleText)) {
       report(`STORE_LISTING.md still contains stale text or path: ${staleText}`);
+    }
+  }
+  for (const [label, content] of [["STORE_LISTING.md", listing], ["docs/store-submission.md", storeSubmission]] as const) {
+    for (const pattern of [
+      /\b(?:awaiting review|currently in review|pending approval)\b/i,
+      /候选版本是\s*`\d+\.\d+\.\d+`/,
+      /只有\s*`\d+\.\d+\.\d+`\s*未被/,
+      /截至\s*\d{4}\s*年[^\n]+已审核通过并公开/,
+    ]) {
+      if (pattern.test(content)) report(`${label} contains version-specific mutable status that belongs in docs/store-releases/<version>.md: ${pattern}`);
+    }
+  }
+
+  if (!listing.includes("docs/store-releases/0.2.0.md")) {
+    report("STORE_LISTING.md must link version-specific evidence instead of embedding review status.");
+  }
+  if (!storeSubmission.includes("./store-releases/0.2.0.md")) {
+    report("docs/store-submission.md must link the 0.2.0 version record.");
+  }
+  for (const requiredRecordText of [
+    "0.2.0",
+    "EBD361E597D893C336838DF8D5E995FD4428FE3758B2F65A45BAB20054F227C5",
+    "D935B77D6AA2FA9599A0DEA7AC44336DA29EDBF7B23F25C6F4757F2A4AC53038",
+    "F34FD0511C7BFFDE12CBDCA8F584A97F9D671B5A58A2E6F80E19265AE996DCB2",
+    "patina_web_sync-0.2.0.xpi",
+    "web-sync@patina.local",
+    "gimdckblhckibmeklhemgccabmbnoemd",
+    "6349117",
+    "1c97f45f-593b-4d9b-a75e-67e8d46e1e25",
+    "已审核通过并公开",
+    "最后核验日期：2026-08-09",
+  ]) {
+    if (!releaseRecord.includes(requiredRecordText)) {
+      report(`docs/store-releases/0.2.0.md is missing version evidence: ${requiredRecordText}`);
     }
   }
 
@@ -175,6 +215,61 @@ async function checkDocumentation() {
           `${heading} must not reference another browser in public store copy; found ${browserName}.`,
         );
       }
+    }
+  }
+
+  const maintainerDocs = [
+    {
+      path: "src/chromium/README.md",
+      required: [
+        "chromewebstore.google.com/detail/patina-web-sync/gimdckblhckibmeklhemgccabmbnoemd",
+        "microsoftedge.microsoft.com/addons/detail/gogmlpjhbfjghilmpcciedplifdiibai",
+        "The zip root contains `manifest.json`.",
+        "Tab/window id, timestamps, and event reason stay out of the payload.",
+      ],
+      forbidden: ["not published in either store yet", "The zip contains a versioned extension folder."],
+    },
+    {
+      path: "src/chromium/README.zh-CN.md",
+      required: [
+        "chromewebstore.google.com/detail/patina-web-sync/gimdckblhckibmeklhemgccabmbnoemd",
+        "microsoftedge.microsoft.com/addons/detail/gogmlpjhbfjghilmpcciedplifdiibai",
+        "zip 根目录直接包含 `manifest.json`",
+        "不发送标签页/窗口 ID、采集时间或事件原因",
+      ],
+      forbidden: ["当前扩展尚未发布到这两个商店", "zip 内包含一个带版本号的扩展目录"],
+    },
+    {
+      path: "src/firefox/README.md",
+      required: [
+        "addons.mozilla.org/firefox/addon/patina-web-sync/", "public listed AMO `.xpi`",
+        "The formal GitHub Release XPI is not signed locally.",
+        "Tab/window id, timestamps, and event reason stay out of the payload.",
+      ],
+      forbidden: [
+        "the extension is not listed on AMO yet",
+        "user-facing GitHub Release package is a Mozilla AMO `unlisted` signed `.xpi`",
+      ],
+    },
+    {
+      path: "src/firefox/README.zh-CN.md",
+      required: [
+        "addons.mozilla.org/zh-CN/firefox/addon/patina-web-sync/", "AMO 同版本公开 listed XPI",
+        "正式 GitHub Release XPI 不在本地重新签名", "不发送标签页/窗口 ID、采集时间或事件原因",
+      ],
+      forbidden: [
+        "当前扩展尚未 listed on AMO",
+        "GitHub Release 用户安装包是经 Mozilla AMO `unlisted` 签名的 `.xpi`",
+      ],
+    },
+  ] as const;
+  for (const doc of maintainerDocs) {
+    const content = await readFile(join(REPO_ROOT, doc.path), "utf8");
+    for (const required of doc.required) {
+      if (!content.includes(required)) report(`${doc.path} must include current distribution text: ${required}`);
+    }
+    for (const forbidden of doc.forbidden) {
+      if (content.includes(forbidden)) report(`${doc.path} still contains retired text: ${forbidden}`);
     }
   }
 }

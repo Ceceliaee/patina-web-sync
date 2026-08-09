@@ -6,14 +6,23 @@ on:
       - "v[0-9]*.[0-9]*.[0-9]*"
 
 permissions:
-  contents: write
+  contents: read
+
+concurrency:
+  group: patina-web-sync-release-${{ github.ref }}
+  cancel-in-progress: false
 
 jobs:
-  release:
+  build:
+    name: Build verified release assets
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    outputs:
+      version: ${{ steps.release.outputs.version }}
 
     steps:
-      - name: Checkout
+      - name: Checkout tagged source
         uses: actions/checkout@v6
         with:
           fetch-depth: 0
@@ -23,8 +32,8 @@ jobs:
         id: release
         shell: bash
         run: |
-          REF_NAME="${{ github.ref_name }}"
-          VERSION="${REF_NAME#v}"
+          set -euo pipefail
+          VERSION="${GITHUB_REF_NAME#v}"
           if [[ ! "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+(\.[0-9]+)?$ ]]; then
             echo "Invalid browser extension version: $VERSION" >&2
             exit 1
@@ -34,100 +43,253 @@ jobs:
       - name: Set up Node
         uses: actions/setup-node@v6
         with:
-          node-version: 22
+          node-version-file: .node-version
           cache: npm
 
       - name: Install dependencies
         run: npm ci
 
-      - name: Validate release version
-        run: npm run check:versions -- ${{ steps.release.outputs.version }}
+      - name: Validate tagged source
+        run: |
+          npm run check:versions -- ${{ steps.release.outputs.version }}
+          npm run check
+          npm run check:i18n:release
+          npm run release:notes -- ${{ steps.release.outputs.version }}
 
-      - name: Run checks
-        run: npm run check
-
-      - name: Generate release notes
-        run: npm run release:notes -- ${{ steps.release.outputs.version }}
-
-      - name: Package Chromium extension
+      - name: Package Chromium extension once
         run: npm run extension:chromium:package
 
-      - name: Download published Firefox extension
+      - name: Download public listed Firefox XPI
         shell: bash
         env:
           VERSION: ${{ steps.release.outputs.version }}
         run: |
           set -euo pipefail
-
-          AMO_METADATA_FILE="$(mktemp)"
-          AMO_FIELDS_FILE="$(mktemp)"
-          trap 'rm -f "$AMO_METADATA_FILE" "$AMO_FIELDS_FILE"' EXIT
-          AMO_API_URL="https://addons.mozilla.org/api/v5/addons/addon/patina-web-sync/versions/v${VERSION}/"
-          curl --fail --silent --show-error --location "$AMO_API_URL" --output "$AMO_METADATA_FILE"
-
-          node --input-type=module - "$AMO_METADATA_FILE" "$VERSION" > "$AMO_FIELDS_FILE" <<'NODE'
+          METADATA="$(mktemp)"
+          FIELDS="$(mktemp)"
+          trap 'rm -f "$METADATA" "$FIELDS"' EXIT
+          API_URL="https://addons.mozilla.org/api/v5/addons/addon/patina-web-sync/versions/v${VERSION}/"
+          curl --fail --silent --show-error --location "$API_URL" --output "$METADATA"
+          node --input-type=module - "$METADATA" "$VERSION" > "$FIELDS" <<'NODE'
           import { readFileSync } from "node:fs";
-
           const [metadataFile, expectedVersion] = process.argv.slice(2);
           const metadata = JSON.parse(readFileSync(metadataFile, "utf8"));
           const downloadUrl = metadata.file?.url;
           const hash = metadata.file?.hash;
-
-          if (metadata.version !== expectedVersion) {
-            throw new Error(`AMO returned version ${metadata.version ?? "(missing)"}; expected ${expectedVersion}.`);
-          }
+          if (metadata.version !== expectedVersion) throw new Error(`AMO returned ${metadata.version}; expected ${expectedVersion}.`);
           if (metadata.channel !== "listed" || metadata.file?.status !== "public") {
-            throw new Error("The requested Firefox version is not a public listed AMO release.");
+            throw new Error("The Firefox version is not public and listed.");
           }
           if (!/^https:\/\/addons\.mozilla\.org\/firefox\/downloads\/file\/\d+\/[A-Za-z0-9._+-]+\.xpi$/.test(downloadUrl ?? "")) {
-            throw new Error("AMO returned an unexpected Firefox download URL.");
+            throw new Error("AMO returned an unexpected XPI URL.");
           }
-          if (!/^sha256:[0-9a-f]{64}$/i.test(hash ?? "")) {
-            throw new Error("AMO returned an invalid SHA-256 hash.");
-          }
-
+          if (!/^sha256:[0-9a-f]{64}$/i.test(hash ?? "")) throw new Error("AMO returned an invalid SHA-256.");
           console.log(downloadUrl);
-          console.log(hash.slice("sha256:".length).toLowerCase());
+          console.log(hash.slice(7).toLowerCase());
           NODE
-          mapfile -t AMO_FIELDS < "$AMO_FIELDS_FILE"
-
-          DOWNLOAD_URL="${AMO_FIELDS[0]}"
-          EXPECTED_SHA256="${AMO_FIELDS[1]}"
-          FIREFOX_XPI="dist/extensions/firefox/patina-firefox-extension-v${VERSION}.xpi"
-          mkdir -p "$(dirname "$FIREFOX_XPI")"
-          curl --fail --silent --show-error --location "$DOWNLOAD_URL" --output "$FIREFOX_XPI"
-          echo "${EXPECTED_SHA256}  ${FIREFOX_XPI}" | sha256sum --check --strict
-
-          FIREFOX_MANIFEST="$(unzip -p "$FIREFOX_XPI" manifest.json)"
-          FIREFOX_MANIFEST="$FIREFOX_MANIFEST" node --input-type=module - "$VERSION" <<'NODE'
+          mapfile -t AMO < "$FIELDS"
+          XPI="dist/extensions/firefox/patina-firefox-extension-v${VERSION}.xpi"
+          mkdir -p "$(dirname "$XPI")"
+          curl --fail --silent --show-error --location "${AMO[0]}" --output "$XPI"
+          echo "${AMO[1]}  $XPI" | sha256sum --check --strict
+          MANIFEST="$(unzip -p "$XPI" manifest.json)"
+          MANIFEST="$MANIFEST" node --input-type=module - "$VERSION" <<'NODE'
           const expectedVersion = process.argv[2];
-          const manifest = JSON.parse(process.env.FIREFOX_MANIFEST ?? "");
-          if (manifest.version !== expectedVersion) {
-            throw new Error(`Signed XPI manifest version ${manifest.version ?? "(missing)"}; expected ${expectedVersion}.`);
-          }
+          const manifest = JSON.parse(process.env.MANIFEST ?? "");
+          if (manifest.version !== expectedVersion) throw new Error("AMO XPI manifest version mismatch.");
           if (manifest.browser_specific_settings?.gecko?.id !== "web-sync@patina.local") {
-            throw new Error("Signed XPI Gecko ID does not match Patina Web Sync.");
+            throw new Error("AMO XPI Gecko id mismatch.");
           }
           NODE
 
-      - name: Collect assets
+      - name: Collect and verify release assets
         shell: bash
         run: |
+          set -euo pipefail
+          VERSION="${{ steps.release.outputs.version }}"
           mkdir -p dist-release
-          CHROMIUM_VERSION=$(node -p "require('./src/chromium/manifest.json').version")
-          FIREFOX_VERSION=$(node -p "require('./src/firefox/manifest.json').version")
-          cp "dist/extensions/chromium/patina-chromium-extension-v${CHROMIUM_VERSION}.zip" dist-release/
-          cp "dist/extensions/firefox/patina-firefox-extension-v${FIREFOX_VERSION}.xpi" dist-release/
+          cp "dist/extensions/chromium/patina-chromium-extension-v${VERSION}.zip" dist-release/
+          cp "dist/extensions/firefox/patina-firefox-extension-v${VERSION}.xpi" dist-release/
+          cp dist/release-notes.md dist-release/release-notes.md
+          npm run release:checksums -- dist-release "$VERSION"
+          npm run release:verify-assets -- dist-release "$VERSION"
 
-      - name: Publish GitHub Release
-        uses: softprops/action-gh-release@v3
+      - name: Upload verified release inputs
+        uses: actions/upload-artifact@v4
         with:
-          tag_name: v${{ steps.release.outputs.version }}
-          name: Patina Web Sync v${{ steps.release.outputs.version }}
-          prerelease: false
-          body_path: dist/release-notes.md
-          overwrite_files: true
-          fail_on_unmatched_files: true
-          files: |
-            dist-release/patina-chromium-extension-v${{ steps.release.outputs.version }}.zip
-            dist-release/patina-firefox-extension-v${{ steps.release.outputs.version }}.xpi
+          name: patina-web-sync-release-${{ steps.release.outputs.version }}
+          path: dist-release/
+          if-no-files-found: error
+          retention-days: 14
+
+  publish:
+    name: Publish content-immutable GitHub Release
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      id-token: write
+      attestations: write
+
+    steps:
+      - name: Checkout tagged source
+        uses: actions/checkout@v6
+        with:
+          ref: ${{ github.ref }}
+
+      - name: Set up Node
+        uses: actions/setup-node@v6
+        with:
+          node-version-file: .node-version
+
+      - name: Download verified release inputs
+        uses: actions/download-artifact@v4
+        with:
+          name: patina-web-sync-release-${{ needs.build.outputs.version }}
+          path: dist-release
+
+      - name: Verify downloaded workflow artifact
+        run: npm run release:verify-assets -- dist-release ${{ needs.build.outputs.version }}
+
+      - name: Preflight existing release assets
+        id: preflight
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ needs.build.outputs.version }}
+        run: |
+          set -euo pipefail
+          TAG="v${VERSION}"
+          EXPECTED=(
+            "patina-chromium-extension-v${VERSION}.zip"
+            "patina-firefox-extension-v${VERSION}.xpi"
+            "SHA256SUMS"
+          )
+          mkdir -p remote-existing
+          : > missing-assets.txt
+          NEW_RELEASE=false
+          SHOULD_PUBLISH=false
+          if gh release view "$TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            if [[ "$(gh release view "$TAG" --repo "$GITHUB_REPOSITORY" --json isDraft --jq .isDraft)" == "true" ]]; then
+              SHOULD_PUBLISH=true
+            fi
+            mapfile -t REMOTE_NAMES < <(gh api "repos/${GITHUB_REPOSITORY}/releases/tags/${TAG}" --jq '.assets[].name')
+            for REMOTE_NAME in "${REMOTE_NAMES[@]}"; do
+              if ! printf '%s\n' "${EXPECTED[@]}" | grep -Fxq "$REMOTE_NAME"; then
+                echo "unexpected release asset: $REMOTE_NAME" >&2
+                exit 1
+              fi
+            done
+            for FILE in "${EXPECTED[@]}"; do
+              if printf '%s\n' "${REMOTE_NAMES[@]}" | grep -Fxq "$FILE"; then
+                gh release download "$TAG" --repo "$GITHUB_REPOSITORY" --pattern "$FILE" --dir remote-existing
+                LOCAL_HASH="$(sha256sum "dist-release/$FILE" | cut -d' ' -f1)"
+                REMOTE_HASH="$(sha256sum "remote-existing/$FILE" | cut -d' ' -f1)"
+                if [[ "$LOCAL_HASH" != "$REMOTE_HASH" ]]; then
+                  echo "same-name asset hash conflict: $FILE local=$LOCAL_HASH remote=$REMOTE_HASH" >&2
+                  exit 1
+                fi
+              else
+                echo "$FILE" >> missing-assets.txt
+              fi
+            done
+          else
+            NEW_RELEASE=true
+            SHOULD_PUBLISH=true
+            printf '%s\n' "${EXPECTED[@]}" > missing-assets.txt
+          fi
+          echo "new_release=$NEW_RELEASE" >> "$GITHUB_OUTPUT"
+          echo "should_publish=$SHOULD_PUBLISH" >> "$GITHUB_OUTPUT"
+
+      - name: Attest Chromium ZIP
+        uses: actions/attest-build-provenance@v3
+        with:
+          subject-path: dist-release/patina-chromium-extension-v${{ needs.build.outputs.version }}.zip
+
+      - name: Attest Firefox XPI
+        uses: actions/attest-build-provenance@v3
+        with:
+          subject-path: dist-release/patina-firefox-extension-v${{ needs.build.outputs.version }}.xpi
+
+      - name: Verify asset attestations
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ needs.build.outputs.version }}
+        run: |
+          gh attestation verify "dist-release/patina-chromium-extension-v${VERSION}.zip" --repo "$GITHUB_REPOSITORY"
+          gh attestation verify "dist-release/patina-firefox-extension-v${VERSION}.xpi" --repo "$GITHUB_REPOSITORY"
+
+      - name: Create or update conflict-free release metadata
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ needs.build.outputs.version }}
+        run: |
+          set -euo pipefail
+          TAG="v${VERSION}"
+          if [[ "${{ steps.preflight.outputs.new_release }}" == "true" ]]; then
+            gh release create "$TAG" --repo "$GITHUB_REPOSITORY" --verify-tag --draft \
+              --title "Patina Web Sync v${VERSION}" --notes-file dist-release/release-notes.md
+          else
+            gh release edit "$TAG" --repo "$GITHUB_REPOSITORY" \
+              --title "Patina Web Sync v${VERSION}" --notes-file dist-release/release-notes.md
+          fi
+
+      - name: Upload only missing verified assets
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ needs.build.outputs.version }}
+        run: |
+          set -euo pipefail
+          while IFS= read -r FILE; do
+            [[ -z "$FILE" ]] && continue
+            gh release upload "v${VERSION}" "dist-release/$FILE" --repo "$GITHUB_REPOSITORY"
+          done < missing-assets.txt
+
+      - name: Verify published release assets
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ needs.build.outputs.version }}
+        run: |
+          set -euo pipefail
+          TAG="v${VERSION}"
+          EXPECTED_NAMES="SHA256SUMS
+          patina-chromium-extension-v${VERSION}.zip
+          patina-firefox-extension-v${VERSION}.xpi"
+          ACTUAL_NAMES="$(gh api "repos/${GITHUB_REPOSITORY}/releases/tags/${TAG}" --jq '.assets[].name' | sort)"
+          if [[ "$ACTUAL_NAMES" != "$EXPECTED_NAMES" ]]; then
+            echo "Unexpected release asset set:" >&2
+            printf '%s\n' "$ACTUAL_NAMES" >&2
+            exit 1
+          fi
+          RELEASE_JSON="$(gh release view "$TAG" --repo "$GITHUB_REPOSITORY" --json tagName,name)"
+          if [[ "$(jq -r .tagName <<< "$RELEASE_JSON")" != "$TAG" \
+            || "$(jq -r .name <<< "$RELEASE_JSON")" != "Patina Web Sync v${VERSION}" ]]; then
+            echo "Release tag or title mismatch." >&2
+            exit 1
+          fi
+          if [[ "$(git rev-parse "${TAG}^{commit}")" != "$GITHUB_SHA" ]]; then
+            echo "Release tag commit does not match the workflow commit." >&2
+            exit 1
+          fi
+          mkdir -p remote-verify
+          gh release download "$TAG" --repo "$GITHUB_REPOSITORY" --dir remote-verify
+          npm run release:verify-assets -- remote-verify "$VERSION"
+          CHROMIUM_MANIFEST="$(unzip -p "remote-verify/patina-chromium-extension-v${VERSION}.zip" manifest.json)"
+          FIREFOX_MANIFEST="$(unzip -p "remote-verify/patina-firefox-extension-v${VERSION}.xpi" manifest.json)"
+          CHROMIUM_MANIFEST="$CHROMIUM_MANIFEST" FIREFOX_MANIFEST="$FIREFOX_MANIFEST" \
+            node --input-type=module - "$VERSION" <<'NODE'
+          const expected = process.argv[2];
+          const chromium = JSON.parse(process.env.CHROMIUM_MANIFEST ?? "");
+          const firefox = JSON.parse(process.env.FIREFOX_MANIFEST ?? "");
+          if (chromium.version !== expected || firefox.version !== expected) throw new Error("Remote manifest version mismatch.");
+          if (firefox.browser_specific_settings?.gecko?.id !== "web-sync@patina.local") throw new Error("Remote Gecko id mismatch.");
+          NODE
+
+      - name: Publish verified draft
+        if: steps.preflight.outputs.should_publish == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release edit "v${{ needs.build.outputs.version }}" --repo "$GITHUB_REPOSITORY" --draft=false

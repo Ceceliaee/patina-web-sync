@@ -11,7 +11,8 @@ function fail(message: string): never {
 }
 
 const packageJson = JSON.parse(await readFile(join(REPO_ROOT, "package.json"), "utf8")) as { version?: unknown };
-const requestedVersion = process.argv[2]?.trim().replace(/^v/, "");
+const allowUnreleased = process.argv.includes("--allow-unreleased");
+const requestedVersion = process.argv.slice(2).find((argument) => !argument.startsWith("--"))?.trim().replace(/^v/, "");
 const version = requestedVersion || (typeof packageJson.version === "string" ? packageJson.version.trim() : "");
 if (!VERSION_PATTERN.test(version)) {
   fail(`Expected a numeric X.Y.Z or X.Y.Z.N version; found ${version || "(missing)"}.`);
@@ -20,15 +21,23 @@ if (!VERSION_PATTERN.test(version)) {
 const changelog = await readFile(join(REPO_ROOT, "CHANGELOG.md"), "utf8");
 const headingPattern = new RegExp(`^## \\[${version.replaceAll(".", "\\.")}\\] - \\d{4}-\\d{2}-\\d{2}\\s*$`, "m");
 const headingMatch = headingPattern.exec(changelog);
-if (!headingMatch) {
+let releaseNotes = "";
+if (headingMatch) {
+  const bodyStart = headingMatch.index + headingMatch[0].length;
+  const nextVersionStart = changelog.indexOf("\n## [", bodyStart);
+  releaseNotes = changelog.slice(bodyStart, nextVersionStart === -1 ? undefined : nextVersionStart).trim();
+  if (!releaseNotes.startsWith("Release:")) {
+    fail(`The [${version}] version section must start with a Release: summary.`);
+  }
+} else if (allowUnreleased) {
+  const unreleasedHeading = "## [Unreleased]";
+  const bodyStart = changelog.indexOf(unreleasedHeading) + unreleasedHeading.length;
+  const nextVersionStart = changelog.indexOf("\n## [", bodyStart);
+  const body = changelog.slice(bodyStart, nextVersionStart === -1 ? undefined : nextVersionStart).trim();
+  if (!body) fail("[Unreleased] must describe the local release candidate.");
+  releaseNotes = `Candidate ${version} (not yet released)\n\n${body}`;
+} else {
   fail(`CHANGELOG.md is missing a formal [${version}] version section.`);
-}
-
-const bodyStart = headingMatch.index + headingMatch[0].length;
-const nextVersionStart = changelog.indexOf("\n## [", bodyStart);
-const releaseNotes = changelog.slice(bodyStart, nextVersionStart === -1 ? undefined : nextVersionStart).trim();
-if (!releaseNotes.startsWith("Release:")) {
-  fail(`The [${version}] version section must start with a Release: summary.`);
 }
 
 const outputPath = join(REPO_ROOT, "dist", "release-notes.md");
