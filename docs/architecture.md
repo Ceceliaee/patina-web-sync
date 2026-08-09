@@ -14,8 +14,10 @@ Browser extension -> local HTTP POST -> Patina desktop app -> local Patina data 
 
 ## 仓库结构
 
-- `src/chromium/`：Chromium 系 Manifest V3 扩展目标，包含包内 `_locales/en` 与 `_locales/zh_CN`。
-- `src/firefox/`：Firefox WebExtension 目标，包含包内 locales、稳定 Gecko id 和 Firefox 142+ 数据同意声明。
+- `src/shared/`：两个目标共用的 Popup、Options、语言运行时、状态模型与平台适配契约；目标副本由生成器产出。
+- `src/chromium/`：Chromium 系 Manifest V3 目标入口、manifest、后台脚本、图标与生成产物。
+- `src/firefox/`：Firefox 目标入口、manifest、后台脚本、图标、稳定 Gecko id、Firefox 142+ 数据同意声明与生成产物。
+- `locales/`：用户可见语言的唯一人工维护源、locale registry 和审核哈希。
 - `scripts/`：验证、构建、打包和签名辅助脚本。
 - `store-assets/<store>/`：各浏览器商店可上传成品；`store-assets/source/` 只保留源图和历史图。
 - `STORE_LISTING.md`：Chrome Web Store、Firefox AMO 和 Microsoft Edge Add-ons 共用商店信息草案。
@@ -23,6 +25,7 @@ Browser extension -> local HTTP POST -> Patina desktop app -> local Patina data 
 - `docs/architecture.md`：长期所有权和模块边界规则。
 - `docs/engineering-quality.md`：验证、隐私、发布和跨浏览器质量规则。
 - `docs/quiet-pro-component-guidelines.md`：轻量扩展 UI 设计规则。
+- `docs/localization.md`：语言事实源、生成、审核和语言无关状态规则。
 - `docs/store-submission.md`：浏览器商店上架准备参考。
 - `docs/versioning-and-release-policy.md`：扩展版本和发布规则。
 - `docs/web-activity-protocol.md`：与 Patina 共享的本机协议。
@@ -35,6 +38,14 @@ Browser extension -> local HTTP POST -> Patina desktop app -> local Patina data 
 4. 扩展使用 `Authorization: Bearer <token>` 向 `http://127.0.0.1:<port>/web-activity` 发送 payload。
 5. Patina 按 Patina 拥有的规则接收、拒绝、存储、清洗和展示记录。
 6. 扩展只保存轻量的本地连接状态，供 popup/options UI 解释当前状态。
+
+## 共享 UI 与平台边界
+
+Popup、Options、消息格式化和状态到视图模型的映射属于稳定的双目标能力，放在 `src/shared/`。构建前生成器把这些文件和 locale catalog 确定性写入两个目标目录，使直接加载和商店打包都使用完整目标目录。
+
+`platform.js` 是 UI 的薄适配边界，只封装 storage、tabs、runtime message 与 options page API 的 Promise 差异。Chromium 与 Firefox 后台入口保持目标专属：Chromium 拥有本地 favicon cache，Firefox 拥有 optional technical data consent。共同的状态/错误分类使用同一生成状态模块。
+
+生成的目标副本没有独立所有权，不得手工修补。`check:i18n` 和 `check:parity` 必须在目标副本漂移时失败。parity 允许差异清单必须同时写明文件和稳定理由；没有列入清单的目标文件必须字节一致。
 
 ## 浏览器目标规则
 

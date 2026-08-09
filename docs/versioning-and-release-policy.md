@@ -92,7 +92,16 @@ patina-firefox-extension-vX.Y.Z.xpi
 
 GitHub Release 使用 AMO 已公开的同版本 listed XPI。发布工作流必须通过 AMO 公开版本 API 获取下载地址和 SHA-256，确认版本渠道为 `listed`、文件状态为 `public`，校验下载文件哈希、manifest version 和稳定 Gecko id 后再收集附件。不得对已经上传或发布到 AMO 的版本再次执行 unlisted 签名。
 
-GitHub Release 正文必须由 `CHANGELOG.md` 对应正式版本节生成。工作流重跑时允许复用同 tag 的现有 Release，覆盖同名附件并刷新正文，以修复首次发布中断留下的草稿或不完整附件；重跑不得重新签名 Firefox。
+GitHub Release 正文必须由 `CHANGELOG.md` 对应正式版本节生成。正式资产采用“内容不可变、动作可恢复”语义：
+
+- Release 不存在时，可以从已验证工作流产物创建。
+- 同名资产已经存在且 SHA-256 与本次产物相同时，视为已满足，不重新覆盖。
+- Release 缺少部分资产时，只能补齐缺失且已经验证的资产。
+- 同名资产哈希不同时必须立即失败，不得使用 overwrite、clobber、删除再传或同名替换绕过。
+- Release notes 只有在资产预检通过后才能幂等更新。
+- 重跑不得重新构建另一份候选、不得重新签名 Firefox。
+
+正式附件必须包含 Chromium ZIP、AMO public/listed Firefox XPI 和覆盖两者的 `SHA256SUMS`。工作流为正式二进制生成 GitHub Artifact Attestation，并在上传后重新下载远端资产，验证名称、数量、大小、SHA-256、manifest version 与稳定 Gecko id。
 
 ## 发布流程
 
@@ -103,9 +112,9 @@ GitHub Release 正文必须由 `CHANGELOG.md` 对应正式版本节生成。工�
 5. 提交发布候选，并把该提交生成的对应包分别提交到 Chrome Web Store、Firefox Add-ons 和 Microsoft Edge Add-ons。
 6. 等待三个商店中的同一版本全部审核通过并公开。审核期间不要用相同版本重新生成内容不同的上传包。
 7. 维护者确认三个商店全部通过后，再为发布候选提交创建并推送 tag `vX.Y.Z`。
-8. Tag push 自动触发 `Publish Release`：GitHub Actions 校验版本一致性、打包 Chromium、从 AMO 下载同版本公开 listed XPI，校验 AMO SHA-256、manifest version 和稳定 Gecko id，然后一次性发布完整 GitHub Release。
+8. Tag push 自动触发 `Publish Release`：GitHub Actions 校验版本一致性、打包 Chromium、从 AMO 下载同版本公开 listed XPI，校验 AMO SHA-256、manifest version 和稳定 Gecko id，生成校验和与 attestation，再按内容不可变规则发布并回读完整 GitHub Release。
 
-`Publish Release` 不提供人工触发入口，也不持有 AMO 签名凭据。若维护者过早推送 tag，AMO API 尚未返回该版本的公开 listed XPI，工作流必须在创建 GitHub Release 前失败。若同 tag GitHub Release 已存在，工作流复用它并刷新经过验证的正文与同版本附件。
+`Publish Release` 不提供人工触发入口，也不持有 AMO 签名凭据。若维护者过早推送 tag，AMO API 尚未返回该版本的公开 listed XPI，工作流必须在创建 GitHub Release 前失败。若同 tag GitHub Release 已存在，工作流先下载和校验既有资产：相同资产跳过、缺失资产补齐、冲突资产失败。
 
 ## Patina Web Sync 跨仓签收契约
 
@@ -116,7 +125,8 @@ GitHub Release 正文必须由 `CHANGELOG.md` 对应正式版本节生成。工�
 3. 维护者确认三店状态后，为对应发布候选提交创建并推送 `vX.Y.Z` tag。
 4. Tag 自动工作流已经发布完整的 Patina Web Sync GitHub Release，tag、Release 标题与附件版本一致。
 5. Firefox Release 附件来自 AMO 的同版本公开 listed XPI，并已校验 AMO SHA-256、manifest version 与稳定 Gecko id。
-6. 若版本改变 Web Activity 协议，Patina 接收端兼容必须先落地，两仓的 `docs/web-activity-protocol.md` 必须保持一致。
+6. GitHub Release 的 Chromium ZIP 与 Firefox XPI 已由 `SHA256SUMS` 和 artifact attestation 绑定，并通过发布后远端回读；同名资产不存在哈希冲突或覆盖历史。
+7. 若版本改变 Web Activity 协议，Patina 接收端兼容必须先落地，两仓的 `docs/web-activity-protocol.md` 必须保持一致。
 
 完成签收不绑定两个项目的版本号，也不要求 Patina 与 Patina Web Sync 同日发布。Patina Release 不携带扩展附件；Patina 只消费稳定商店入口、扩展 Release 和双方已对齐的本机协议。普通扩展发布不得依赖尚未发布的 Patina 接收端行为。
 

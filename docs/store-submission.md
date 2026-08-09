@@ -4,9 +4,9 @@
 
 本文是 Patina Web Sync 在 Chrome Web Store、Firefox AMO 和 Microsoft Edge Add-ons 提交时的长期参考。
 
-截至 2026 年 7 月 23 日，Chrome Web Store、Firefox Add-ons 与 Microsoft Edge Add-ons 的 `0.2.0` 均已审核通过并公开。后续版本仍需分别完成包、文案、隐私政策、审核说明、素材和 go / no-go 检查；真实上传、提交审核、发布或分发范围选择是单独的外部操作，需要用户明确执行或授权。
+已完成版本的日期、哈希和审核结果见 `docs/store-releases/<version>.md`。每个新版本仍需分别完成包、文案、隐私政策、审核说明、素材和 go / no-go 检查；真实上传、提交审核、发布或分发范围选择是单独的外部操作，需要用户明确执行或授权。
 
-候选版本是 `0.2.0`。它发送当前非私密活动页面的完整 URL（包括 path、query 和 fragment），使 Patina 可以保存并导出“URL 地址”；不再发送 tab/window ID、采集时间或事件原因。Firefox 最低版本为 142.0，并使用内置数据同意。
+扩展发送当前非私密活动页面的完整 URL（包括 path、query 和 fragment），使 Patina 可以保存并导出“URL 地址”；不发送 tab/window ID、采集时间或事件原因。Firefox 最低版本为 142.0，并使用内置数据同意。具体候选版本和审核状态只记录在对应的版本化商店记录或当前发布工作记录中。
 
 ## 唯一事实来源
 
@@ -32,7 +32,7 @@
 2. 查看本地 Git tag 和 GitHub Release。
 3. 在 AMO Developer Hub 检查稳定 Gecko ID `web-sync@patina.local` 已接受、签名或上传的最高版本。
 4. 检查 Chrome Web Store 和 Edge Partner Center 是否已有同版本草稿或上传记录。
-5. 只有 `0.2.0` 未被相关平台占用时，才可继续上传该版本；否则先把三处版本统一前进。
+5. 只有候选版本未被相关平台占用时，才可继续上传；否则先把 package 与两个 manifest 统一前进到更高版本。
 6. 运行 `npm run check` 和 `npm run release:check`。
 
 不得为了验证文档、manifest 或本地包而运行 `npm run extension:firefox:sign`。
@@ -136,12 +136,6 @@ npm run release:check
 
 每个平台真实上传后记录：上传版本、package hash、validator 结果、listing locale、privacy 选择、素材集合、提交时间和当前状态。后台截图可作为一次性证据，但稳定规则应回写本文或其他长期文档，不能只存在截图中。
 
-### `0.2.0` 实际提交记录
+### 版本化提交记录
 
-| 平台 | 包与 SHA-256 | 校验与公开资料 | 提交标识 | 2026-07-23 状态 |
-| --- | --- | --- | --- | --- |
-| Firefox AMO | `patina-firefox-extension-v0.2.0.zip`; `D935B77D6AA2FA9599A0DEA7AC44336DA29EDBF7B23F25C6F4757F2A4AC53038` | AMO 自动验证无错误或警告；Desktop；英语与简体中文；MIT；`No suitable category`；listed on this site | Version ID `6349117` | 已审核通过并公开 |
-| Microsoft Edge Add-ons | `patina-chromium-extension-v0.2.0.zip`; `EBD361E597D893C336838DF8D5E995FD4428FE3758B2F65A45BAB20054F227C5` | 包验证通过；Public；241/241 markets 并启用未来市场；英语与简体中文；logo 与 small promotional tile；隐私与权限声明完成 | Product/draft ID `1c97f45f-593b-4d9b-a75e-67e8d46e1e25` | 已审核通过并公开 |
-| Chrome Web Store | `patina-chromium-extension-v0.2.0.zip`; `EBD361E597D893C336838DF8D5E995FD4428FE3758B2F65A45BAB20054F227C5` | 包已被后台接受；英语与简体中文；`工作流程与规划`；icon、全球截图与 small promo tile；Authentication information、Web history、Website content；remote code `No`；Free、Public、all regions；审核测试说明已填写 | Item ID `gimdckblhckibmeklhemgccabmbnoemd` | 已审核通过并公开 |
-
-Chrome 与 Edge `0.2.0` 的公开英文和中文描述均未提及其他浏览器。各平台审核说明也仅使用当前平台术语。
+版本日期、包哈希、提交标识与最终审核结果放在 `docs/store-releases/<version>.md`，不在本长期流程文档中重复维护。首个三商店公开版本见 [`0.2.0` 商店版本记录](./store-releases/0.2.0.md)。

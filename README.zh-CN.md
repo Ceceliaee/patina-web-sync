@@ -114,8 +114,8 @@ Patina Web Sync 当前专注于 Patina 的浏览器伴生同步：
 
 ### 环境要求
 
-- [Node.js](https://nodejs.org/) 20+
-- npm 8+
+- [Node.js](https://nodejs.org/) 24.18.0
+- npm 11.16.0
 
 ### 安装依赖
 

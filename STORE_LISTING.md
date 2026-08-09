@@ -1,8 +1,8 @@
 # Patina Web Sync Store Listing Source
 
-This file is the single source for Chrome Web Store, Firefox AMO, and Microsoft Edge Add-ons listing fields. Copy the text inside the plain-text blocks into store dashboards. Keep this file aligned with `PRIVACY.md`, `docs/store-reviewer-test-instructions.md`, the manifests, and the submitted packages.
+This file is the single source for reusable Chrome Web Store, Firefox AMO, and Microsoft Edge Add-ons listing fields. Copy the text inside the plain-text blocks into store dashboards. Keep this file aligned with `PRIVACY.md`, `docs/store-reviewer-test-instructions.md`, the manifests, and the submitted packages. Version dates, hashes, submission identifiers, and review results belong in `docs/store-releases/<version>.md`.
 
-Facts verified for candidate `0.2.0` on July 11, 2026.
+Reusable listing copy last verified on August 9, 2026. Historical `0.2.0` evidence is recorded in `docs/store-releases/0.2.0.md`.
 
 ## Platform Copy Isolation
 
@@ -171,7 +171,7 @@ The extension never sends tab ID, window ID, capture timestamp, or event reason.
 
 ## Chrome Web Store Fields
 
-- Submitted version: `0.2.0`; Item ID: `gimdckblhckibmeklhemgccabmbnoemd`; submitted on July 11, 2026 and awaiting review with automatic publishing after approval enabled.
+- Item ID: `gimdckblhckibmeklhemgccabmbnoemd`.
 - Package: `dist/extensions/chromium/patina-chromium-extension-vX.Y.Z.zip`
 - Localized listings: English and Simplified Chinese, backed by `_locales/en` and `_locales/zh_CN` in the package.
 - Category: `工作流程与规划` (`Workflow & Planning`), the closest current Chrome Web Store category for local time tracking and productivity workflows.
@@ -190,7 +190,7 @@ The extension never sends tab ID, window ID, capture timestamp, or event reason.
 - Package: `dist/extensions/firefox/patina-firefox-extension-vX.Y.Z.zip`; `manifest.json` is at the zip root.
 - Stable Gecko ID: `web-sync@patina.local`
 - Minimum Firefox version: 142.0
-- Category: select `Productivity` when AMO offers it; for the `0.2.0` listed submission, AMO did not offer that category and `No suitable category` was selected.
+- Category: select `Productivity` when AMO offers it; otherwise use the closest available option and record the actual choice in the version evidence.
 - License: MIT
 - Experimental: No
 - Requires payment, a non-free service, or additional hardware: No. Patina is free software and is the declared desktop dependency.
@@ -201,7 +201,7 @@ The extension never sends tab ID, window ID, capture timestamp, or event reason.
 
 ## Microsoft Edge Add-ons Fields
 
-- Developer account: ready. Version `0.2.0` was submitted on July 11, 2026 and is currently in review.
+- Product ID: `1c97f45f-593b-4d9b-a75e-67e8d46e1e25`.
 - Package: use the validated Chromium package unless Edge validation requires a documented target-specific variant.
 - Localized listings: English and Simplified Chinese, backed by the Chromium `_locales` directories.
 - Category: Productivity

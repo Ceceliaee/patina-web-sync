@@ -24,12 +24,16 @@ npm run check
 
 该命令必须覆盖：
 
+- Node/npm/CI/类型定义工具链一致性
+- 本地化 schema、review hash、生成一致性、硬编码自测与目标 parity
 - `package.json` 和两个 manifest 的版本一致性
 - Chromium 扩展结构和权限检查
 - Firefox 扩展结构、权限和 Gecko id 检查
 - Firefox AMO `web-ext lint --warnings-as-errors` 检查
 - Firefox 142+ data collection permissions 与运行时 optional consent 门
 - 三个平台商店素材的 PNG 尺寸、数量和文档路径检查
+- 双目标 bridge 成功、关闭、拒绝、HTTP、非 JSON、网络异常和 storage 迁移矩阵
+- 语言菜单键盘行为、焦点恢复和动态状态 live region
 
 如果改动触及 manifests、package scripts、release workflow、签名、打包或 asset 命名，还要运行：
 
@@ -61,6 +65,8 @@ npm run release:check
 - background 必须保留普通活动页面的完整 URL，使 path、query 和 fragment 可进入本机 Patina 数据导出。
 - 新 payload 不发送 tab/window ID、采集时间或事件原因。Patina 可以兼容旧字段，但不能依赖它们。
 - 本机 bridge 响应必须显式满足协议成功 shape：HTTP status 成功且 JSON response body 包含 `ok: true`，才可显示为已同步。
+- background 与 storage 只保存稳定状态码、错误码及结构化参数，不保存扩展生成的本地化句子。
+- Popup、Options、manifest、ARIA 和状态文案只从 `locales/` 生成；目标生成文件不得手改。
 
 ## 隐私与数据处理
 
@@ -85,12 +91,29 @@ incognito/private 标签页属于更高隐私等级的浏览器上下文。扩�
 - 保持面向用户的设置说明在浏览器目标之间一致
 - 如果该差异成为稳定不变量，更新验证脚本
 
+共同 Popup、Options 和状态映射应来自 `src/shared/`。`npm run check:parity` 必须阻止只更新一个目标、未声明目标文件或生成副本漂移。
+
+## 本地化与无障碍质量
+
+- 每个支持 locale 必须拥有完全相同的消息键和插值参数。
+- 中文源或译文变化必须使旧 review hash 失效。
+- 硬编码检查必须包含自测，证明缺键、硬编码和 stale exception 会失败。
+- 语言菜单使用真实 menu/menuitemradio 键盘模式：打开聚焦、方向键、Home/End、Enter/Space、Escape 与焦点恢复。
+- Popup 和 Options 动态状态使用稳定、原子的 polite live region；状态不能只依赖颜色。
+- 连续运行两次生成器必须得到零 diff。
+
+## 运行时失败矩阵
+
+Chromium 和 Firefox 都必须动态覆盖：成功、Web Sync 关闭、已知/未知 `ok:false`、空对象、`null`、非 JSON 2xx、401/403、其他 HTTP 错误、网络异常、缺 token、私密标签页、内部 URL 与完整 URL。Firefox 还要覆盖 optional technical data 有/无授权。
+
 ## 发布质量
 
 发布改动必须防止签名或发布错误版本：
 
 - 打包或发布前，`npm run check:versions` 必须通过。
 - Git tag、package version、Chromium manifest version、Firefox manifest version、release title 和 asset 名称必须一致。
+- 正式 ZIP/XPI 必须有稳定 `SHA256SUMS`、artifact attestation 和发布后远端回读验证。
+- 已存在的同名 Release asset 只有与本次已验证产物 SHA-256 相同时才可复用；缺失资产可补齐，不同哈希必须失败。
 - AMO 已接受某个 Firefox manifest version 后，不要再次签同一个版本。
 - 不要把未签名 Firefox zip 作为面向用户的 release asset 发布。
 - 不要把 `dist/`、`dist-release/` 和 `web-ext-artifacts/` 生成物提交进 git。
@@ -106,6 +129,13 @@ incognito/private 标签页属于更高隐私等级的浏览器上下文。扩�
 脚本的失败信息要足够具体，让未来维护者知道哪个文件或不变量坏了。
 
 UI 文件保持行为简单，不引入远程依赖。扩展页面应能在当前 content security policy 下工作。
+
+## 依赖安全
+
+- 每次依赖调整和候选发布都运行 `npm audit --omit=dev --audit-level=high`；运行时依赖出现 high 或 critical 时不得发布。
+- 开发依赖告警不能靠破坏性降级、`--force` 或扩大运行时攻击面来消除；必须核对最新直接依赖、上游修复状态、实际输入边界与产物包含范围。
+- 截至 2026-08-09，`web-ext@10.6.0 -> addons-linter@10.10.0 -> image-size@2.0.2` 仍带有 3 个 high 告警，且 npm registry 没有包含修复的新版本。该链路只用于本地/CI 对仓库自有商店图片和 Firefox 包执行检查，不进入扩展运行时或发布包；升级一旦可用就移除此例外。
+- 不允许把上述限定例外泛化为忽略其他 audit 告警；依赖树、版本、用途或输入信任边界任一变化，都必须重新评估。
 
 ## 文档质量
 

@@ -10,6 +10,7 @@ These instructions apply to the whole repository unless the user gives an explic
 - Architecture and ownership decisions must follow `docs/architecture.md`.
 - Engineering quality decisions must follow `docs/engineering-quality.md`.
 - Extension UI work must follow `docs/quiet-pro-component-guidelines.md`.
+- User-visible copy, locale generation, and language-neutral state must follow `docs/localization.md`.
 - Versioning, packaging, AMO signing, and release work must follow `docs/versioning-and-release-policy.md`.
 - Patina bridge compatibility must follow `docs/web-activity-protocol.md`.
 - Cross-repository release acceptance with Patina must follow the acceptance contract in `docs/versioning-and-release-policy.md`.
@@ -43,6 +44,7 @@ These instructions apply to the whole repository unless the user gives an explic
 ## Browser Target Rules
 
 - Keep Chromium and Firefox user behavior aligned unless browser APIs or store rules force a target-specific implementation.
+- Common Popup and Options behavior must come from shared sources and pass the parity gate. Target differences must stay in explicit browser adapters or target entry points.
 - Keep Firefox `browser_specific_settings.gecko.id` stable as `web-sync@patina.local`.
 - Firefox manifest versions must only move forward for the stable Gecko id after AMO signing has happened.
 - Chromium may use Chromium-specific favicon APIs; Firefox must not request Chromium-only permissions.
@@ -58,7 +60,15 @@ These instructions apply to the whole repository unless the user gives an explic
 - User-facing Firefox release assets must be signed `.xpi` files; unsigned Firefox zip files are development artifacts only.
 - Publish a version tag only after the maintainer confirms that the same version is public in Chrome Web Store, Firefox Add-ons, and Microsoft Edge Add-ons.
 - Tag pushes publish GitHub Releases automatically. The workflow must download the public listed Firefox XPI from AMO instead of signing the version again.
-- If a same-tag GitHub Release already exists, reruns may refresh its notes and same-version assets from the verified workflow outputs; they must not sign a new Firefox artifact.
+- If a same-tag GitHub Release already exists, reruns may keep byte-identical assets and fill missing verified assets. They must fail on any same-name hash conflict and must not sign a new Firefox artifact.
+
+## Localization Rules
+
+- `locales/` is the only human-maintained source for user-visible copy.
+- Do not hand-edit generated target locales, catalogs, or shared UI copies.
+- Do not add user-visible fallback, status, error, title, or ARIA text outside the localization contract.
+- Background and storage state must use stable status/error codes and structured parameters, never extension-generated localized sentences.
+- A locale change must affect rendering only; it must not change connection settings, protocol payloads, or stored status facts.
 
 ## Validation
 
@@ -78,7 +88,10 @@ If validation cannot be run, clearly record the reason in the final response.
 
 ## Git And Release Hygiene
 
-- This is a personal public repository. When the user asks to push confirmed changes, commit the confirmed scope and push directly to `origin/main`.
+- Any push requires an explicit current-task request naming a repository or remote destination. `commit`, `finish`, `archive`, `sync`, and `continue` do not authorize push.
+- `Commit locally` means local commit only. Push authorization does not carry to later changes or later tasks.
+- A push request authorizes only the confirmed repository scope. Tag creation or push, GitHub Release publication, force push, AMO signing, store submission, and issue mutation require separate explicit authorization.
+- When the user explicitly asks to push confirmed changes to this repository, commit the confirmed scope and push directly to `origin/main` unless another target is specified.
 - Do not create a branch or pull request unless the user explicitly asks for one.
 - Do not use issue-closing keywords such as `Closes`, `Fixes`, or `Resolves` unless the user explicitly asks to close an issue.
 - Do not commit generated artifacts from `dist/`, `dist-release/`, `web-ext-artifacts/`, or local secret directories.
