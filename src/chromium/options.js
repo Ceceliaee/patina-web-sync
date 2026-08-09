@@ -1,65 +1,10 @@
+// Target copies are generated from this shared source.
 const DEFAULT_PORT = "12345";
 const PORT_PATTERN = /^\d{1,5}$/;
-const DEFAULT_LANGUAGE = "zh-CN";
-
-const DEFAULTS = {
-  port: DEFAULT_PORT,
-  token: "",
-  language: DEFAULT_LANGUAGE,
-  lastStatus: "disabled",
-  lastMessage: "",
-};
-
-const OPTIONS_TEXT = {
-  "zh-CN": {
-    headerDescription: "把当前活动网页同步到本机 Patina，用于补全桌面时间记录。",
-    serviceTitle: "网页同步",
-    portLabel: "端口",
-    syncButton: "同步当前页",
-    saveButton: "保存",
-    syncContentTitle: "同步内容",
-    syncContentText: "同步当前活动网页的网址、标题和网站图标。",
-    ariaLanguage: "Languages",
-    showToken: "显示 Token",
-    hideToken: "隐藏 Token",
-    statusNotEnabled: "未开启",
-    statusNotSynced: "未同步",
-    statusSynced: "已同步",
-    statusSyncing: "同步中",
-    statusPendingConfig: "待配置",
-    statusSaved: "已保存",
-    statusSaving: "保存中",
-    statusPrivate: "私密窗口不会同步",
-    invalidToken: "Token 无效",
-    missingToken: "请填写 Token",
-    webRecordingDisabled: "Patina 网页同步未开启",
-    syncFailedPrefix: "未同步：",
-  },
-  en: {
-    headerDescription: "Sync the active webpage to local Patina to complete desktop time records.",
-    serviceTitle: "Web Sync",
-    portLabel: "Port",
-    syncButton: "Sync current page",
-    saveButton: "Save",
-    syncContentTitle: "Synced Data",
-    syncContentText: "Syncs the active website, title, and site icon.",
-    ariaLanguage: "Languages",
-    showToken: "Show Token",
-    hideToken: "Hide Token",
-    statusNotEnabled: "Off",
-    statusNotSynced: "Not synced",
-    statusSynced: "Synced",
-    statusSyncing: "Syncing",
-    statusPendingConfig: "Needs setup",
-    statusSaved: "Saved",
-    statusSaving: "Saving",
-    statusPrivate: "Private window is not synced",
-    invalidToken: "Invalid Token",
-    missingToken: "Enter Token",
-    webRecordingDisabled: "Patina Web Sync is off",
-    syncFailedPrefix: "Not synced: ",
-  },
-};
+const SETTINGS_DEFAULTS = { port: DEFAULT_PORT, token: "", language: "zh-CN" };
+const platform = globalThis.PatinaPlatform;
+const i18n = globalThis.PatinaI18n;
+const statusModel = globalThis.PatinaStatus;
 
 const form = document.querySelector("#options-form");
 const portInput = document.querySelector("#port");
@@ -71,210 +16,141 @@ const languageButton = document.querySelector("#language-button");
 const languageMenu = document.querySelector("#language-menu");
 const languageOptions = Array.from(document.querySelectorAll("[data-language-option]"));
 
-let currentLanguage = DEFAULT_LANGUAGE;
+let currentLanguage = "zh-CN";
+let currentSettings = { ...SETTINGS_DEFAULTS, ...statusModel.DEFAULT_STATUS_STATE };
 let saveTimer = null;
-
-function normalizeLanguage(language) {
-  return language === "en" ? "en" : DEFAULT_LANGUAGE;
-}
-
-function copy() {
-  return OPTIONS_TEXT[currentLanguage] || OPTIONS_TEXT[DEFAULT_LANGUAGE];
-}
-
-function applyLanguage() {
-  const text = copy();
-  document.documentElement.lang = currentLanguage;
-  document.querySelectorAll("[data-i18n]").forEach((node) => {
-    const key = node.dataset.i18n;
-    if (key && Object.prototype.hasOwnProperty.call(text, key)) {
-      node.textContent = text[key];
-    }
-  });
-  languageButton.setAttribute("aria-label", text.ariaLanguage);
-  languageOptions.forEach((option) => {
-    option.setAttribute("aria-checked", String(option.dataset.languageOption === currentLanguage));
-  });
-  setTokenVisibility(tokenInput.type === "text");
-}
-
-function setLanguageMenuOpen(open) {
-  languageMenu.hidden = !open;
-  languageButton.setAttribute("aria-expanded", String(open));
-}
 
 function normalizePort(rawPort, fallback = DEFAULT_PORT) {
   const value = String(rawPort || "").trim();
   if (!PORT_PATTERN.test(value)) return fallback;
   const port = Number(value);
-  if (!Number.isInteger(port) || port < 1024 || port > 65535) return fallback;
-  return String(port);
+  return Number.isInteger(port) && port >= 1024 && port <= 65535 ? String(port) : fallback;
 }
 
 function isValidPort(rawPort) {
   return normalizePort(rawPort, "") !== "";
 }
 
-function setStatus(message, tone = "neutral", state = "") {
-  statusText.textContent = message;
+async function readSettings() {
+  const stored = await platform.storageGet(null);
+  const raw = { ...SETTINGS_DEFAULTS, ...statusModel.DEFAULT_STATUS_STATE, ...stored };
+  const migration = statusModel.normalizeStoredState(raw);
+  const language = i18n.normalizeLocale(raw.language);
+  const port = normalizePort(raw.port);
+  const patch = { ...migration.patch };
+  if (language !== raw.language) patch.language = language;
+  if (port !== raw.port) patch.port = port;
+  if (Object.keys(patch).length > 0) await platform.storageSet(patch);
+  if (migration.removeKeys.length > 0) await platform.storageRemove(migration.removeKeys);
+  return { ...migration.state, language, port, token: String(raw.token || "") };
+}
+
+function setStatus(label, tone = "neutral", state = "") {
+  statusText.textContent = label;
   statusText.dataset.tone = tone;
   statusText.dataset.state = state;
 }
 
-function localizeStatusMessage(message) {
-  const value = String(message || "").trim();
-  if (!value) return "";
-  const normalized = value.toLowerCase();
-  if (
-    value === "无效"
-    || value === "无效。"
-    || (normalized.includes("token") && value.includes("无效"))
-    || normalized.includes("invalid web activity token")
-    || normalized.includes("invalid token")
-    || normalized.includes("unauthorized")
-  ) {
-    return copy().invalidToken;
-  }
-  if (
-    value.includes("请填写 Token")
-    || (normalized.includes("missing") && normalized.includes("token"))
-  ) {
-    return copy().missingToken;
-  }
-  if (
-    value.includes("Patina 网页同步未开启")
-    || normalized.includes("patina web recording is off")
-    || normalized.includes("web-recording-disabled")
-  ) {
-    return copy().webRecordingDisabled;
-  }
-  return value;
-}
+const errorMessageKeys = {
+  "invalid-token": "error.invalidToken",
+  "missing-token": "error.missingToken",
+  "web-recording-disabled": "error.webRecordingDisabled",
+  "http-error": "error.httpError",
+  "invalid-response": "error.invalidResponse",
+  "service-rejected": "error.serviceRejected",
+  "request-failed": "error.requestFailed",
+  "unknown-service-error": "error.unknownService",
+};
 
-function formatStatus(status, message) {
-  const text = copy();
-  if (status === "private") {
-    return { label: text.statusPrivate, tone: "neutral", code: "private" };
-  }
-  if (status === "disconnected") {
-    return { label: text.statusNotSynced, tone: "neutral", code: "disconnected" };
-  }
-  if (message) {
+function statusView(settings) {
+  const errorKey = errorMessageKeys[settings.lastErrorCode];
+  if (errorKey) {
+    const params = settings.lastErrorCode === "http-error"
+      ? { httpStatus: settings.lastErrorParams?.httpStatus || "?" }
+      : {};
     return {
-      label: localizeStatusMessage(message),
-      tone: status === "error" || status === "needs-config" ? "danger" : "neutral",
-      code: status,
+      label: i18n.message(currentLanguage, errorKey, params),
+      tone: settings.lastErrorCode === "web-recording-disabled" ? "neutral" : "danger",
+      code: settings.lastStatus,
     };
   }
-  switch (status) {
-    case "connected":
-      return { label: text.statusSynced, tone: "success", code: "connected" };
-    case "connecting":
-      return { label: text.statusSyncing, tone: "neutral", code: "connecting" };
-    case "needs-config":
-      return { label: text.statusPendingConfig, tone: "danger", code: "needs-config" };
-    case "configured":
-      return { label: text.statusSaved, tone: "success", code: "configured" };
-    case "error":
-      return { label: text.statusNotSynced, tone: "danger", code: "error" };
-    case "disconnected":
-      return { label: text.statusNotSynced, tone: "neutral", code: "disconnected" };
-    case "disabled":
-    default:
-      return { label: text.statusNotEnabled, tone: "neutral", code: "disabled" };
-  }
+  const views = {
+    connected: ["status.connected", "success"],
+    connecting: ["status.connecting", "neutral"],
+    configured: ["status.configured", "success"],
+    "needs-config": ["status.needsConfig", "danger"],
+    disconnected: ["status.disconnected", "neutral"],
+    private: ["status.private", "neutral"],
+    disabled: ["status.disabled", "neutral"],
+    error: ["status.error", "danger"],
+  };
+  const [key, tone] = views[settings.lastStatus] || views.disabled;
+  return { label: i18n.message(currentLanguage, key), tone, code: settings.lastStatus };
 }
 
-function configStatus(port, token) {
-  const text = copy();
-  if (!isValidPort(port)) return { label: text.statusPendingConfig, tone: "danger", code: "needs-config" };
-  if (!token.trim()) return { label: text.statusPendingConfig, tone: "danger", code: "needs-config" };
-  return { label: text.statusSaved, tone: "success", code: "configured" };
+function configView(port, token) {
+  return isValidPort(port) && String(token || "").trim()
+    ? { label: i18n.message(currentLanguage, "status.configured"), tone: "success", code: "configured" }
+    : { label: i18n.message(currentLanguage, "status.needsConfig"), tone: "danger", code: "needs-config" };
 }
 
-function savedSettingsStatus(settings, port) {
-  const config = configStatus(port, String(settings.token || ""));
-  if (config.code !== "configured") return config;
-  if (
-    settings.lastStatus === "error"
-    || settings.lastStatus === "disabled"
-    || settings.lastStatus === "private"
-  ) {
-    return formatStatus(settings.lastStatus, settings.lastMessage);
-  }
-  return config;
+function setTokenVisibility(visible) {
+  tokenInput.type = visible ? "text" : "password";
+  toggleTokenButton.dataset.visible = String(visible);
+  toggleTokenButton.setAttribute("aria-label", i18n.message(currentLanguage, visible ? "options.hideToken" : "options.showToken"));
+  toggleTokenButton.setAttribute("aria-pressed", String(visible));
+}
+
+function applyLanguage() {
+  currentLanguage = i18n.applyDocument(currentLanguage);
+  languageButton.setAttribute("aria-label", i18n.message(currentLanguage, "options.languageMenuLabel"));
+  languageOptions.forEach((option) => {
+    const selected = i18n.normalizeLocale(option.dataset.languageOption) === currentLanguage;
+    option.setAttribute("aria-checked", String(selected));
+    option.tabIndex = selected ? 0 : -1;
+  });
+  setTokenVisibility(tokenInput.type === "text");
 }
 
 function syncFormState({ updateStatus = true } = {}) {
   const validPort = isValidPort(portInput.value);
   const hasToken = tokenInput.value.trim().length > 0;
-  const status = configStatus(portInput.value, tokenInput.value);
   testButton.disabled = !validPort || !hasToken;
-  if (
-    updateStatus
-    && statusText.dataset.state !== "saving"
-    && statusText.dataset.state !== "syncing"
-  ) {
-    setStatus(status.label, status.tone, status.code);
+  if (updateStatus && !["saving", "syncing"].includes(statusText.dataset.state)) {
+    const view = configView(portInput.value, tokenInput.value);
+    setStatus(view.label, view.tone, view.code);
   }
 }
 
 async function load({ resetStatus = true } = {}) {
-  const settings = await chrome.storage.local.get(DEFAULTS);
-  currentLanguage = normalizeLanguage(settings.language);
+  currentSettings = await readSettings();
+  currentLanguage = currentSettings.language;
   applyLanguage();
-
-  const port = normalizePort(settings.port);
-  portInput.value = port;
-  tokenInput.value = settings.token || "";
+  portInput.value = currentSettings.port;
+  tokenInput.value = currentSettings.token;
   if (resetStatus) {
-    const status = savedSettingsStatus(settings, port);
-    setStatus(status.label, status.tone, status.code);
+    const view = statusView(currentSettings);
+    setStatus(view.label, view.tone, view.code);
   }
-  syncFormState({ updateStatus: false });
-  if (port !== settings.port || settings.language !== currentLanguage) {
-    await chrome.storage.local.set({ port, language: currentLanguage });
-  }
-}
-
-async function refreshSyncStatus() {
-  const settings = await chrome.storage.local.get(DEFAULTS);
-  currentLanguage = normalizeLanguage(settings.language);
-  applyLanguage();
-  const status = formatStatus(settings.lastStatus, settings.lastMessage);
-  setStatus(status.label, status.tone, status.code);
   syncFormState({ updateStatus: false });
 }
 
 async function save() {
   const port = normalizePort(portInput.value, "");
-  if (!port) {
-    const status = configStatus(portInput.value, tokenInput.value);
-    setStatus(status.label, status.tone, status.code);
+  const token = tokenInput.value.trim();
+  if (!port || !token) {
+    const view = configView(portInput.value, token);
+    setStatus(view.label, view.tone, view.code);
     syncFormState();
     return false;
   }
-  const current = await chrome.storage.local.get(DEFAULTS);
-  const token = tokenInput.value.trim();
-  const currentPort = normalizePort(current.port, "");
-  const currentToken = String(current.token || "").trim();
-  const connectionChanged = port !== currentPort
-    || token !== currentToken;
-  const nextSettings = { ...current, port, token, language: currentLanguage };
-  const nextStatus = connectionChanged
-    ? configStatus(port, token)
-    : savedSettingsStatus(nextSettings, port);
-  await chrome.storage.local.set({
-    port,
-    token,
-    language: currentLanguage,
-    ...(!token
-      ? { lastStatus: "needs-config", lastMessage: "" }
-      : connectionChanged
-        ? { lastStatus: "configured", lastMessage: "" }
-        : {}),
-  });
-  setStatus(nextStatus.label, nextStatus.tone, nextStatus.code);
+  const connectionChanged = port !== currentSettings.port || token !== currentSettings.token;
+  const patch = { port, token, language: currentLanguage };
+  if (connectionChanged) Object.assign(patch, statusModel.statusPatch("configured"));
+  await platform.storageSet(patch);
+  currentSettings = { ...currentSettings, ...patch };
+  const view = connectionChanged ? statusView(currentSettings) : configView(port, token);
+  setStatus(view.label, view.tone, view.code);
   syncFormState({ updateStatus: false });
   return true;
 }
@@ -282,88 +158,84 @@ async function save() {
 function queueSave() {
   if (saveTimer) clearTimeout(saveTimer);
   syncFormState();
-  setStatus(copy().statusSaving, "neutral", "saving");
+  setStatus(i18n.message(currentLanguage, "status.saving"), "neutral", "saving");
   saveTimer = window.setTimeout(() => {
     saveTimer = null;
     void save();
   }, 250);
 }
 
-form.addEventListener("submit", (event) => {
-  event.preventDefault();
-  void save();
-});
-
-portInput.addEventListener("input", queueSave);
-tokenInput.addEventListener("input", queueSave);
-
-function setTokenVisibility(visible) {
-  tokenInput.type = visible ? "text" : "password";
-  const label = visible ? copy().hideToken : copy().showToken;
-  toggleTokenButton.dataset.visible = String(visible);
-  toggleTokenButton.setAttribute("aria-label", label);
-  toggleTokenButton.setAttribute("aria-pressed", String(visible));
+function focusedLanguageOption() {
+  return languageOptions.find((option) => option.tabIndex === 0) || languageOptions[0];
 }
 
-toggleTokenButton.addEventListener("click", () => {
-  const shouldShow = tokenInput.type === "password";
-  setTokenVisibility(shouldShow);
-});
+function focusLanguageOption(index) {
+  const normalizedIndex = (index + languageOptions.length) % languageOptions.length;
+  languageOptions.forEach((option, optionIndex) => { option.tabIndex = optionIndex === normalizedIndex ? 0 : -1; });
+  languageOptions[normalizedIndex].focus();
+}
 
-languageButton.addEventListener("click", () => {
-  setLanguageMenuOpen(languageMenu.hidden);
-});
+function setLanguageMenuOpen(open, { restoreFocus = false } = {}) {
+  languageMenu.hidden = !open;
+  languageButton.setAttribute("aria-expanded", String(open));
+  if (open) {
+    const selectedIndex = Math.max(0, languageOptions.findIndex((option) => option.getAttribute("aria-checked") === "true"));
+    focusLanguageOption(selectedIndex);
+  } else if (restoreFocus) {
+    languageButton.focus();
+  }
+}
 
-languageMenu.addEventListener("click", async (event) => {
-  const option = event.target.closest("[data-language-option]");
-  if (!option) return;
-  const nextLanguage = normalizeLanguage(option.dataset.languageOption);
-  currentLanguage = nextLanguage;
+async function selectLanguage(option) {
+  currentLanguage = i18n.normalizeLocale(option.dataset.languageOption);
+  await platform.storageSet({ language: currentLanguage });
+  currentSettings.language = currentLanguage;
   applyLanguage();
-  setLanguageMenuOpen(false);
-  await chrome.storage.local.set({ language: nextLanguage });
-  await load({ resetStatus: true });
-});
+  setLanguageMenuOpen(false, { restoreFocus: true });
+  const view = statusView(currentSettings);
+  setStatus(view.label, view.tone, view.code);
+}
 
+form.addEventListener("submit", (event) => { event.preventDefault(); void save(); });
+portInput.addEventListener("input", queueSave);
+tokenInput.addEventListener("input", queueSave);
+toggleTokenButton.addEventListener("click", () => setTokenVisibility(tokenInput.type === "password"));
+languageButton.addEventListener("click", () => setLanguageMenuOpen(languageMenu.hidden));
+languageMenu.addEventListener("click", (event) => {
+  const option = event.target.closest("[data-language-option]");
+  if (option) void selectLanguage(option);
+});
+languageMenu.addEventListener("keydown", (event) => {
+  const index = Math.max(0, languageOptions.indexOf(document.activeElement));
+  if (event.key === "ArrowDown") { event.preventDefault(); focusLanguageOption(index + 1); }
+  else if (event.key === "ArrowUp") { event.preventDefault(); focusLanguageOption(index - 1); }
+  else if (event.key === "Home") { event.preventDefault(); focusLanguageOption(0); }
+  else if (event.key === "End") { event.preventDefault(); focusLanguageOption(languageOptions.length - 1); }
+  else if (event.key === "Escape") { event.preventDefault(); setLanguageMenuOpen(false, { restoreFocus: true }); }
+  else if (event.key === "Enter" || event.key === " ") {
+    event.preventDefault();
+    void selectLanguage(focusedLanguageOption());
+  } else if (event.key === "Tab") setLanguageMenuOpen(false);
+});
 document.addEventListener("click", (event) => {
-  if (languageMenu.hidden) return;
-  if (event.target.closest(".language-control")) return;
-  setLanguageMenuOpen(false);
-});
-
-document.addEventListener("keydown", (event) => {
-  if (event.key === "Escape") setLanguageMenuOpen(false);
+  if (!languageMenu.hidden && !event.target.closest(".language-control")) setLanguageMenuOpen(false);
 });
 
 testButton.addEventListener("click", async () => {
-  const saved = await save();
-  if (!saved) return;
-  if (!tokenInput.value.trim()) {
-    setStatus(copy().missingToken, "danger", "needs-config");
-    return;
+  if (!await save()) return;
+  setStatus(i18n.message(currentLanguage, "status.connecting"), "neutral", "syncing");
+  try {
+    await platform.sendMessage({ type: "patina-connect-now" });
+    window.setTimeout(() => void load({ resetStatus: true }), 600);
+  } catch {
+    setStatus(i18n.message(currentLanguage, "error.requestFailed"), "danger", "error");
   }
-
-  setStatus(copy().statusSyncing, "neutral", "syncing");
-  chrome.runtime.sendMessage({ type: "patina-connect-now" }, () => {
-    if (chrome.runtime.lastError) {
-      setStatus(`${copy().syncFailedPrefix}${chrome.runtime.lastError.message}`, "danger", "error");
-      return;
-    }
-    window.setTimeout(() => void refreshSyncStatus(), 600);
-  });
 });
 
-chrome.storage.onChanged.addListener((changes, areaName) => {
+platform.onStorageChanged((changes, areaName) => {
   if (areaName !== "local") return;
-  if (
-    changes.port
-    || changes.token
-    || changes.language
-    || changes.lastStatus
-    || changes.lastMessage
-  ) {
-    void load({ resetStatus: true });
-  }
+  if (["port", "token", "language", "lastStatus", "lastErrorCode", "lastErrorParams", "statusSchemaVersion"]
+    .some((key) => changes[key])) void load({ resetStatus: true });
 });
 
 void load();
