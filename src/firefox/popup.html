@@ -1,4 +1,5 @@
 <!doctype html>
+<!-- Target copies are generated from this shared source. -->
 <html lang="zh-CN">
   <head>
     <meta charset="utf-8">
@@ -151,6 +152,11 @@
         background: var(--panel-subtle);
       }
 
+      button:focus-visible {
+        outline: 2px solid var(--accent);
+        outline-offset: 2px;
+      }
+
       button.primary {
         border-color: var(--accent);
         background: var(--accent);
@@ -193,20 +199,24 @@
             <h1>Patina Web Sync</h1>
           </div>
         </div>
-        <span id="status-badge" class="status-badge" data-tone="neutral">读取中</span>
+        <span id="status-badge" class="status-badge" data-tone="neutral" role="status" aria-live="polite" aria-atomic="true">读取中</span>
       </header>
 
       <section class="tab-card">
         <span id="tab-label" class="label">当前网页</span>
-        <strong id="tab-title">读取中...</strong>
+        <strong id="tab-title">读取中…</strong>
         <span id="tab-url"></span>
       </section>
 
       <div class="actions">
-        <button id="send-tab" class="primary" type="button">同步当前页</button>
+        <button id="send-tab" class="primary" type="button">完成配置</button>
         <button id="options" type="button">设置</button>
       </div>
     </main>
+    <script src="background-status.js"></script>
+    <script src="generated/messages.js"></script>
+    <script src="platform.js"></script>
+    <script src="i18n.js"></script>
     <script src="popup.js"></script>
   </body>
 </html>

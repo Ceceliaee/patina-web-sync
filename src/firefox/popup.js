@@ -1,58 +1,8 @@
-const DEFAULT_LANGUAGE = "zh-CN";
-
-const DEFAULTS = {
-  port: "12345",
-  token: "",
-  language: DEFAULT_LANGUAGE,
-  lastStatus: "disabled",
-  lastMessage: "",
-};
-
-const POPUP_TEXT = {
-  "zh-CN": {
-    currentPageLabel: "当前网页",
-    loading: "读取中",
-    loadingTitle: "读取中...",
-    noActivePage: "当前没有活动网页",
-    httpOnly: "仅支持普通网站页面（http/https）",
-    settings: "设置",
-    openSettings: "打开设置",
-    completeSetup: "完成配置",
-    syncCurrentPage: "同步当前页",
-    status: "状态",
-    off: "未开启",
-    pendingConfig: "待配置",
-    pendingSync: "待同步",
-    notSynced: "未同步",
-    synced: "已同步",
-    syncing: "同步中",
-    noPage: "无网页",
-    privateBadge: "私密窗口",
-    privateHelp: "私密窗口不会同步",
-  },
-  en: {
-    currentPageLabel: "Current page",
-    loading: "Loading",
-    loadingTitle: "Loading...",
-    noActivePage: "No active webpage",
-    httpOnly: "Only regular webpage is supported (http/https)",
-    settings: "Settings",
-    openSettings: "Open settings",
-    completeSetup: "Finish setup",
-    syncCurrentPage: "Sync current page",
-    status: "Status",
-    off: "Off",
-    pendingConfig: "Needs setup",
-    pendingSync: "Pending",
-    notSynced: "Not synced",
-    synced: "Synced",
-    syncing: "Syncing",
-    noPage: "No page",
-    privateBadge: "Private",
-    privateHelp: "Private window is not synced",
-  },
-};
-
+// Target copies are generated from this shared source.
+const SETTINGS_DEFAULTS = { port: "12345", token: "", language: "zh-CN" };
+const platform = globalThis.PatinaPlatform;
+const i18n = globalThis.PatinaI18n;
+const statusModel = globalThis.PatinaStatus;
 const statusBadge = document.querySelector("#status-badge");
 const tabLabel = document.querySelector("#tab-label");
 const tabTitle = document.querySelector("#tab-title");
@@ -60,16 +10,20 @@ const tabUrl = document.querySelector("#tab-url");
 const optionsButton = document.querySelector("#options");
 const sendTabButton = document.querySelector("#send-tab");
 
-function normalizeLanguage(language) {
-  return language === "en" ? "en" : DEFAULT_LANGUAGE;
-}
-
-function copy(language) {
-  return POPUP_TEXT[normalizeLanguage(language)] || POPUP_TEXT[DEFAULT_LANGUAGE];
+async function readSettings() {
+  const stored = await platform.storageGet(null);
+  const raw = { ...SETTINGS_DEFAULTS, ...statusModel.DEFAULT_STATUS_STATE, ...stored };
+  const migration = statusModel.normalizeStoredState(raw);
+  const language = i18n.normalizeLocale(raw.language);
+  const patch = { ...migration.patch };
+  if (language !== raw.language) patch.language = language;
+  if (Object.keys(patch).length > 0) await platform.storageSet(patch);
+  if (migration.removeKeys.length > 0) await platform.storageRemove(migration.removeKeys);
+  return { ...migration.state, language, port: String(raw.port || ""), token: String(raw.token || "") };
 }
 
 function hasConfig(settings) {
-  return Boolean(String(settings.port || "").trim() && String(settings.token || "").trim());
+  return Boolean(settings.port.trim() && settings.token.trim());
 }
 
 function isTrackableUrl(url) {
@@ -77,171 +31,67 @@ function isTrackableUrl(url) {
 }
 
 function formatDomain(url) {
-  try {
-    return new URL(url).hostname;
-  } catch {
-    return "";
-  }
+  try { return new URL(url).hostname; } catch { return ""; }
 }
 
-function messageBadge(status, text) {
-  switch (status) {
-    case "error":
-      return { badge: text.notSynced, tone: "danger" };
-    case "needs-config":
-      return { badge: text.pendingConfig, tone: "danger" };
-    case "disabled":
-      return { badge: text.off, tone: "neutral" };
-    default:
-      return { badge: text.status, tone: "neutral" };
+function statusView(settings, locale) {
+  if (!hasConfig(settings) || settings.lastStatus === "needs-config") {
+    return { badge: i18n.message(locale, "status.needsConfig"), tone: "danger", canSync: false };
   }
-}
-
-function statusView(settings, text) {
-  if (!hasConfig(settings)) {
-    return {
-      badge: text.pendingConfig,
-      tone: "danger",
-      actionLabel: text.completeSetup,
-      canSync: false,
-    };
-  }
-  if (settings.lastMessage) {
-    const messageStatus = messageBadge(settings.lastStatus, text);
-    return {
-      badge: messageStatus.badge,
-      tone: messageStatus.tone,
-      actionLabel: text.syncCurrentPage,
-      canSync: true,
-    };
-  }
-
-  switch (settings.lastStatus) {
-    case "connected":
-      return {
-        badge: text.synced,
-        tone: "success",
-        actionLabel: text.syncCurrentPage,
-        canSync: true,
-      };
-    case "connecting":
-      return {
-        badge: text.syncing,
-        tone: "neutral",
-        actionLabel: text.syncCurrentPage,
-        canSync: true,
-      };
-    case "needs-config":
-      return {
-        badge: text.pendingConfig,
-        tone: "danger",
-        actionLabel: text.completeSetup,
-        canSync: false,
-      };
-    case "configured":
-      return {
-        badge: text.pendingSync,
-        tone: "neutral",
-        actionLabel: text.syncCurrentPage,
-        canSync: true,
-      };
-    case "error":
-      return {
-        badge: text.notSynced,
-        tone: "danger",
-        actionLabel: text.syncCurrentPage,
-        canSync: true,
-      };
-    case "disconnected":
-      return {
-        badge: text.noPage,
-        tone: "neutral",
-        actionLabel: text.syncCurrentPage,
-        canSync: true,
-      };
-    default:
-      return {
-        badge: text.pendingSync,
-        tone: "neutral",
-        actionLabel: text.syncCurrentPage,
-        canSync: true,
-      };
-  }
+  const views = {
+    connected: ["status.connected", "success"], connecting: ["status.connecting", "neutral"],
+    configured: ["status.configured", "neutral"], disabled: ["status.disabled", "neutral"],
+    disconnected: ["status.disconnected", "neutral"], private: ["popup.privateBadge", "neutral"],
+    error: ["status.error", "danger"],
+  };
+  const [key, tone] = views[settings.lastStatus] || views.configured;
+  return { badge: i18n.message(locale, key), tone, canSync: true };
 }
 
 async function render() {
-  const settings = await browser.storage.local.get(DEFAULTS);
-  const language = normalizeLanguage(settings.language);
-  const text = copy(language);
-  document.documentElement.lang = language;
-  tabLabel.textContent = text.currentPageLabel;
-  optionsButton.textContent = text.settings;
-
-  if (settings.language !== language) {
-    settings.language = language;
-    await browser.storage.local.set({ language });
-  }
-
-  const [activeTab] = await browser.tabs.query({ active: true, lastFocusedWindow: true });
-  const view = statusView(settings, text);
+  const settings = await readSettings();
+  const locale = i18n.applyDocument(settings.language);
+  const [activeTab] = await platform.queryTabs({ active: true, lastFocusedWindow: true });
+  const view = statusView(settings, locale);
   const privateTab = activeTab?.incognito === true;
   const trackable = !privateTab && isTrackableUrl(activeTab?.url);
   const configured = hasConfig(settings);
   const blockedByPage = Boolean(configured && !trackable);
 
   statusBadge.textContent = privateTab && configured
-    ? text.privateBadge
-    : blockedByPage
-      ? text.notSynced
-      : view.badge;
+    ? i18n.message(locale, "popup.privateBadge")
+    : blockedByPage ? i18n.message(locale, "status.error") : view.badge;
   statusBadge.dataset.tone = blockedByPage ? "neutral" : view.tone;
-
   tabTitle.textContent = privateTab
-    ? text.privateHelp
-    : trackable
-      ? formatDomain(activeTab.url)
-      : (activeTab?.title || text.noActivePage);
-  tabUrl.textContent = privateTab ? "" : trackable ? (activeTab?.title || "") : text.httpOnly;
-
-  sendTabButton.textContent = view.actionLabel;
+    ? i18n.message(locale, "popup.privateHelp")
+    : trackable ? formatDomain(activeTab.url) : (activeTab?.title || i18n.message(locale, "popup.noActivePage"));
+  tabUrl.textContent = privateTab ? "" : trackable ? (activeTab?.title || "") : i18n.message(locale, "popup.httpOnly");
+  sendTabButton.textContent = i18n.message(locale, view.canSync ? "popup.syncCurrentPage" : "popup.completeSetup");
   sendTabButton.disabled = Boolean(configured && !trackable);
   sendTabButton.dataset.mode = view.canSync ? "sync" : "options";
+  tabLabel.textContent = i18n.message(locale, "popup.currentPageLabel");
+  optionsButton.textContent = i18n.message(locale, "popup.settings");
 }
 
-optionsButton.addEventListener("click", () => {
-  void browser.runtime.openOptionsPage();
-});
-
+optionsButton.addEventListener("click", () => { void platform.openOptionsPage(); });
 sendTabButton.addEventListener("click", async () => {
-  if (sendTabButton.dataset.mode === "options") {
-    void browser.runtime.openOptionsPage();
-    return;
-  }
-
-  const settings = await browser.storage.local.get(DEFAULTS);
-  const text = copy(settings.language);
-  statusBadge.textContent = text.syncing;
+  if (sendTabButton.dataset.mode === "options") { void platform.openOptionsPage(); return; }
+  const settings = await readSettings();
+  const locale = i18n.normalizeLocale(settings.language);
+  statusBadge.textContent = i18n.message(locale, "status.connecting");
   statusBadge.dataset.tone = "neutral";
   try {
-    await browser.runtime.sendMessage({ type: "patina-send-active-tab" });
+    await platform.sendMessage({ type: "patina-send-active-tab" });
     window.setTimeout(() => void render(), 500);
   } catch {
-    statusBadge.textContent = text.notSynced;
+    statusBadge.textContent = i18n.message(locale, "status.error");
     statusBadge.dataset.tone = "danger";
   }
 });
-
-browser.storage.onChanged.addListener((changes, areaName) => {
+platform.onStorageChanged((changes, areaName) => {
   if (areaName !== "local") return;
-  if (
-    changes.port
-    || changes.token
-    || changes.language
-    || changes.lastStatus
-    || changes.lastMessage
-  ) {
-    void render();
-  }
+  if (["port", "token", "language", "lastStatus", "lastErrorCode", "lastErrorParams", "statusSchemaVersion"]
+    .some((key) => changes[key])) void render();
 });
 
 void render();

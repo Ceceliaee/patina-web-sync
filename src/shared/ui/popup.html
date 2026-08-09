@@ -199,18 +199,18 @@
             <h1>Patina Web Sync</h1>
           </div>
         </div>
-        <span id="status-badge" class="status-badge" data-tone="neutral" role="status" aria-live="polite" aria-atomic="true">读取中</span>
+        <span id="status-badge" class="status-badge" data-tone="neutral" role="status" aria-live="polite" aria-atomic="true">{{popup.loading}}</span>
       </header>
 
       <section class="tab-card">
-        <span id="tab-label" class="label">当前网页</span>
-        <strong id="tab-title">读取中…</strong>
+        <span id="tab-label" class="label">{{popup.currentPageLabel}}</span>
+        <strong id="tab-title">{{popup.loadingTitle}}</strong>
         <span id="tab-url"></span>
       </section>
 
       <div class="actions">
-        <button id="send-tab" class="primary" type="button">完成配置</button>
-        <button id="options" type="button">设置</button>
+        <button id="send-tab" class="primary" type="button">{{popup.completeSetup}}</button>
+        <button id="options" type="button">{{popup.settings}}</button>
       </div>
     </main>
     <script src="background-status.js"></script>
