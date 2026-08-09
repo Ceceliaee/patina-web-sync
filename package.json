@@ -1,28 +1,52 @@
 {
   "name": "patina-web-sync",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "private": true,
   "type": "module",
   "description": "Browser extension companion for Patina local-first desktop time tracking.",
   "engines": {
-    "node": ">=20.0.0",
-    "npm": ">=8.0.0"
+    "node": "24.18.0",
+    "npm": "11.16.0"
+  },
+  "devEngines": {
+    "runtime": {
+      "name": "node",
+      "version": "24.18.0",
+      "onFail": "error"
+    },
+    "packageManager": {
+      "name": "npm",
+      "version": "11.16.0",
+      "onFail": "error"
+    }
   },
   "scripts": {
-    "extension:chromium:check": "node --experimental-strip-types scripts/chromium-extension.ts check",
-    "extension:chromium:build": "node --experimental-strip-types scripts/chromium-extension.ts build",
-    "extension:chromium:package": "node --experimental-strip-types scripts/chromium-extension.ts package",
-    "extension:firefox:check": "node --experimental-strip-types scripts/firefox-extension.ts check",
-    "extension:firefox:lint": "node --experimental-strip-types scripts/firefox-extension.ts lint",
-    "extension:firefox:build": "node --experimental-strip-types scripts/firefox-extension.ts build",
-    "extension:firefox:package": "node --experimental-strip-types scripts/firefox-extension.ts package",
-    "extension:firefox:sign": "node --experimental-strip-types scripts/firefox-extension.ts sign",
-    "check:versions": "node --experimental-strip-types scripts/check-version-consistency.ts",
-    "check:runtime-privacy": "node --experimental-strip-types scripts/check-runtime-privacy.ts",
-    "check:store-assets": "node --experimental-strip-types scripts/check-store-assets.ts",
-    "check": "npm run check:versions && npm run extension:chromium:check && npm run extension:firefox:check && npm run extension:firefox:lint && npm run check:runtime-privacy && npm run check:store-assets",
-    "release:notes": "node --experimental-strip-types scripts/write-release-notes.ts",
-    "release:check": "npm run check && npm run release:notes && npm run extension:chromium:package && npm run extension:firefox:package"
+    "i18n:generate": "node scripts/i18n/generate.ts --write",
+    "extension:chromium:check": "node scripts/chromium-extension.ts check",
+    "extension:chromium:build": "node scripts/chromium-extension.ts build",
+    "extension:chromium:package": "node scripts/chromium-extension.ts package",
+    "extension:firefox:check": "node scripts/firefox-extension.ts check",
+    "extension:firefox:lint": "node scripts/firefox-extension.ts lint",
+    "extension:firefox:build": "node scripts/firefox-extension.ts build",
+    "extension:firefox:package": "node scripts/firefox-extension.ts package",
+    "extension:firefox:sign": "node scripts/firefox-extension.ts sign",
+    "check:toolchain": "node scripts/check-toolchain.ts",
+    "check:versions": "node scripts/check-version-consistency.ts",
+    "check:i18n:self-test": "node scripts/i18n/self-test.ts",
+    "check:i18n": "node scripts/i18n/check.ts && node scripts/i18n/check-hardcoded.ts",
+    "check:i18n:release": "node scripts/i18n/check-release.ts",
+    "check:parity": "node scripts/check-parity.ts",
+    "check:ui-accessibility": "node scripts/check-ui-accessibility.ts",
+    "check:runtime-privacy": "node scripts/check-runtime-privacy.ts",
+    "check:store-assets": "node scripts/check-store-assets.ts",
+    "check:release-workflow": "node scripts/check-release-workflow.ts",
+    "check:package-determinism": "node scripts/check-package-determinism.ts",
+    "check": "npm run check:toolchain && npm run check:versions && npm run check:i18n:self-test && npm run check:i18n && npm run check:parity && npm run check:ui-accessibility && npm run extension:chromium:check && npm run extension:firefox:check && npm run extension:firefox:lint && npm run check:runtime-privacy && npm run check:store-assets && npm run check:release-workflow",
+    "release:notes": "node scripts/write-release-notes.ts",
+    "release:notes:candidate": "node scripts/write-release-notes.ts --allow-unreleased",
+    "release:checksums": "node scripts/release-assets.ts checksums",
+    "release:verify-assets": "node scripts/release-assets.ts verify",
+    "release:check": "node scripts/release-check.ts"
   },
   "repository": {
     "type": "git",
@@ -41,7 +65,8 @@
   },
   "homepage": "https://github.com/Ceceliaee/patina-web-sync#readme",
   "devDependencies": {
-    "@types/node": "^26.0.1",
-    "web-ext": "^10.4.0"
+    "@types/node": "^24.13.3",
+    "jsdom": "^30.0.1",
+    "web-ext": "^10.6.0"
   }
 }
