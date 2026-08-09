@@ -17,11 +17,15 @@ const LOCALE_FILES = [
 ] as const;
 const EXTENSION_FILES = [
   "manifest.json",
+  "background-status.js",
   "background.js",
+  "platform.js",
+  "i18n.js",
   "options.html",
   "options.js",
   "popup.html",
   "popup.js",
+  "generated/messages.js",
   ...LOCALE_FILES,
   ...Object.values(REQUIRED_ICON_FILES),
 ] as const;
@@ -160,6 +164,7 @@ async function checkExtension() {
 
   const manifest = await readManifest();
   const background = await readFile(join(SOURCE_DIR, "background.js"), "utf8");
+  const backgroundStatus = await readFile(join(SOURCE_DIR, "background-status.js"), "utf8");
   const csp = manifest.content_security_policy?.extension_pages ?? "";
 
   if (manifest.manifest_version !== 3) {
@@ -217,8 +222,11 @@ async function checkExtension() {
       fail(`Chromium extension check failed. Background worker must not send unnecessary field: ${forbiddenField}`);
     }
   }
-  if (!background.includes("data?.ok !== true")) {
+  if (!background.includes("classifyBridgeResponse") || !backgroundStatus.includes("data.ok !== true")) {
     fail("Chromium extension check failed. Background worker must require explicit ok:true bridge responses.");
+  }
+  if (background.includes("lastMessage")) {
+    fail("Chromium extension check failed. Background worker must store language-neutral status codes.");
   }
   for (const [size, iconFile] of Object.entries(REQUIRED_ICON_FILES)) {
     if (manifest.icons?.[size] !== iconFile) {

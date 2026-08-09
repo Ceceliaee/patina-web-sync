@@ -1,4 +1,7 @@
+importScripts("background-status.js");
+
 const PROTOCOL_VERSION = 1;
+const statusModel = globalThis.PatinaStatus;
 const EXTENSION_VERSION = chrome.runtime.getManifest().version;
 const DEFAULT_PORT = "12345";
 const PORT_PATTERN = /^\d{1,5}$/;
@@ -9,9 +12,7 @@ const STORAGE_DEFAULTS = {
   port: DEFAULT_PORT,
   token: "",
   clientId: "",
-  lastStatus: "disabled",
-  lastMessage: "",
-  lastSeenAt: 0,
+  ...statusModel.DEFAULT_STATUS_STATE,
 };
 
 let pendingActiveTabTimer = null;
@@ -26,18 +27,16 @@ function browserKind() {
   return "chrome";
 }
 
-function setStatus(lastStatus, lastMessage = "") {
-  return chrome.storage.local.set({
-    lastStatus,
-    lastMessage,
-    lastSeenAt: Date.now(),
-  });
+function setStatus(lastStatus, lastErrorCode = "none", lastErrorParams = {}) {
+  return chrome.storage.local.set(statusModel.statusPatch(lastStatus, lastErrorCode, lastErrorParams));
 }
 
 async function getSettings() {
-  const settings = await chrome.storage.local.get(STORAGE_DEFAULTS);
+  const stored = await chrome.storage.local.get(null);
+  const settings = { ...STORAGE_DEFAULTS, ...stored };
+  const migration = statusModel.normalizeStoredState(settings);
   let clientId = String(settings.clientId || "").trim();
-  const storagePatch = {};
+  const storagePatch = { ...migration.patch };
   if (!clientId) {
     clientId = crypto.randomUUID();
     storagePatch.clientId = clientId;
@@ -45,10 +44,11 @@ async function getSettings() {
   if (Object.keys(storagePatch).length > 0) {
     await chrome.storage.local.set(storagePatch);
   }
+  if (migration.removeKeys.length > 0) await chrome.storage.local.remove(migration.removeKeys);
   const port = normalizePort(settings.port);
   return {
     ...STORAGE_DEFAULTS,
-    ...settings,
+    ...migration.state,
     clientId,
     port,
     token: String(settings.token || "").trim(),
@@ -165,7 +165,7 @@ async function resolveFaviconSource(tab) {
 async function sendActiveTab(eventReason = "refresh") {
   const settings = await getSettings();
   if (!settings.port || !settings.token) {
-    await setStatus("needs-config", "请填写端口和 Token。");
+    await setStatus("needs-config", settings.token ? "none" : "missing-token");
     return;
   }
 
@@ -175,7 +175,7 @@ async function sendActiveTab(eventReason = "refresh") {
     if (activeTab.reason === "private") {
       await setStatus("private");
     } else {
-      await setStatus("disconnected", "当前没有可同步的网页。");
+      await setStatus("disconnected");
     }
     return;
   }
@@ -183,7 +183,7 @@ async function sendActiveTab(eventReason = "refresh") {
   await setStatus("connecting");
   const fullUrl = toTrackableUrl(tab.url);
   if (!fullUrl) {
-    await setStatus("disconnected", "当前没有可同步的网页。");
+    await setStatus("disconnected");
     return;
   }
   const favIconUrl = await resolveFaviconSource(tab);
@@ -208,18 +208,18 @@ async function sendActiveTab(eventReason = "refresh") {
       body: JSON.stringify(payload),
       cache: "no-store",
     });
-    const data = await response.json().catch(() => null);
-    if (data?.enabled === false) {
-      await setStatus("disabled", "Patina 网页同步未开启。");
-      return;
+    let data = null;
+    let jsonParsed = false;
+    try {
+      data = await response.json();
+      jsonParsed = true;
+    } catch {
+      jsonParsed = false;
     }
-    if (!response.ok || data?.ok !== true) {
-      await setStatus("error", data?.message || "");
-      return;
-    }
-    await setStatus("connected");
+    const result = statusModel.classifyBridgeResponse(response, data, jsonParsed);
+    await setStatus(result.lastStatus, result.lastErrorCode, result.lastErrorParams);
   } catch {
-    await setStatus("error");
+    await setStatus("error", "request-failed");
   }
 }
 

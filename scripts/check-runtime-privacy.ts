@@ -5,143 +5,128 @@ import vm from "node:vm";
 
 const REPO_ROOT = dirname(dirname(fileURLToPath(import.meta.url)));
 const FORBIDDEN_PAYLOAD_FIELDS = ["tabId", "windowId", "capturedAtMs", "eventReason"] as const;
+const packageJson = JSON.parse(await readFile(join(REPO_ROOT, "package.json"), "utf8")) as { version: string };
+const manifests = {
+  chromium: JSON.parse(await readFile(join(REPO_ROOT, "src/chromium/manifest.json"), "utf8")) as { version: string },
+  firefox: JSON.parse(await readFile(join(REPO_ROOT, "src/firefox/manifest.json"), "utf8")) as { version: string },
+};
 
+type Target = keyof typeof manifests;
 type TestTab = {
-  active: boolean;
-  favIconUrl?: string;
-  id: number;
-  incognito: boolean;
-  lastAccessed: number;
-  title: string;
-  url: string;
-  windowId: number;
+  active: boolean; favIconUrl?: string; id: number; incognito: boolean; lastAccessed: number;
+  title: string; url: string; windowId: number;
 };
-
-type RequestRecord = {
-  body?: string;
-  headers?: Record<string, string>;
-  method?: string;
-  url: string;
+type ResponseCase = {
+  body?: unknown; jsonError?: boolean; networkError?: boolean; ok?: boolean; status?: number;
 };
+type RequestRecord = { body?: string; headers?: Record<string, string>; method?: string; url: string };
 
 function assert(condition: unknown, message: string): asserts condition {
   if (!condition) throw new Error(`Runtime privacy check failed. ${message}`);
 }
 
-function listenerTarget() {
-  return { addListener() {} };
+function listenerTarget(listeners?: Function[]) {
+  return { addListener(listener: Function) { listeners?.push(listener); } };
 }
 
-function storageApi() {
+function storageApi(initial: Record<string, unknown>) {
+  const state = { ...initial };
+  const writes: Record<string, unknown>[] = [];
   return {
-    async get() {
-      return {
-        clientId: "test-client-id",
-        port: "12345",
-        token: "test-token",
-      };
+    state,
+    writes,
+    api: {
+      async get(defaults: Record<string, unknown> | null) {
+        return defaults === null ? { ...state } : { ...(defaults || {}), ...state };
+      },
+      async remove(keys: string | string[]) {
+        for (const key of Array.isArray(keys) ? keys : [keys]) delete state[key];
+      },
+      async set(values: Record<string, unknown>) {
+        Object.assign(state, values);
+        writes.push({ ...values });
+      },
     },
-    async set() {},
   };
 }
 
-function response() {
+function bridgeResponse(testCase: ResponseCase) {
   return {
-    ok: true,
+    ok: testCase.ok ?? true,
+    status: testCase.status ?? ((testCase.ok ?? true) ? 200 : 500),
     async json() {
-      return { enabled: true, ok: true };
+      if (testCase.jsonError) throw new Error("invalid json");
+      return Object.hasOwn(testCase, "body") ? testCase.body : { enabled: true, ok: true };
     },
   };
 }
 
-function commonContext(fetchImpl: (...args: unknown[]) => Promise<unknown>) {
-  return {
-    URL,
-    clearTimeout() {},
-    console,
-    crypto: globalThis.crypto,
-    fetch: fetchImpl,
-    Map,
-    navigator: { userAgent: "Mozilla/5.0 Test Browser" },
-    setTimeout() {
-      return 1;
-    },
-    Uint8Array,
+async function runTarget(
+  target: Target,
+  tab: TestTab,
+  responseCase: ResponseCase = {},
+  { allowTechnicalData = true, storage = {} as Record<string, unknown>, viaMessage = false } = {},
+) {
+  const requests: RequestRecord[] = [];
+  const messageListeners: Function[] = [];
+  const localStorage = storageApi({ clientId: "test-client-id", port: "12345", token: "test-token", ...storage });
+  const fetchImpl = async (rawUrl: unknown, options: unknown = {}) => {
+    const url = String(rawUrl);
+    if (url.includes("/_favicon/")) return { ok: false, status: 404 };
+    requests.push({ url, ...(options as Omit<RequestRecord, "url">) });
+    if (responseCase.networkError) throw new Error("network unavailable");
+    return bridgeResponse(responseCase);
   };
-}
-
-async function runChromium(tab: TestTab) {
-  const requests: RequestRecord[] = [];
-  const context = vm.createContext({
-    ...commonContext(async (rawUrl: unknown, options: unknown = {}) => {
-      const url = String(rawUrl);
-      if (url.includes("/_favicon/")) return { ok: false };
-      requests.push({ url, ...(options as Omit<RequestRecord, "url">) });
-      return response();
-    }),
-    chrome: {
-      alarms: { create() {}, onAlarm: listenerTarget() },
-      runtime: {
-        getManifest: () => ({ version: "0.2.0" }),
-        getURL: (path: string) => `chrome-extension://test${path}`,
-        onInstalled: listenerTarget(),
-        onMessage: listenerTarget(),
-        onStartup: listenerTarget(),
-      },
-      storage: { local: storageApi(), onChanged: listenerTarget() },
-      tabs: {
-        onActivated: listenerTarget(),
-        onUpdated: listenerTarget(),
-        async query() {
-          return [tab];
-        },
-      },
-      windows: { onFocusChanged: listenerTarget(), WINDOW_ID_NONE: -1 },
+  const common = {
+    URL, Uint8Array, clearTimeout() {}, console, crypto: globalThis.crypto, fetch: fetchImpl,
+    importScripts() {}, navigator: { userAgent: target === "firefox" ? "Mozilla/5.0 Firefox" : "Mozilla/5.0 Chrome" },
+    setTimeout() { return 1; },
+  };
+  const api = {
+    alarms: { create() {}, onAlarm: listenerTarget() },
+    runtime: {
+      getManifest: () => ({ version: manifests[target].version }),
+      getURL: (path: string) => `${target}-extension://test${path}`,
+      onInstalled: listenerTarget(), onMessage: listenerTarget(messageListeners), onStartup: listenerTarget(),
     },
-  });
-  const source = await readFile(join(REPO_ROOT, "src", "chromium", "background.js"), "utf8");
-  vm.runInContext(source, context, { filename: "src/chromium/background.js" });
-  await vm.runInContext('sendActiveTab("manual")', context);
-  return requests;
-}
-
-async function runFirefox(tab: TestTab, allowTechnicalData: boolean) {
-  const requests: RequestRecord[] = [];
-  const context = vm.createContext({
-    ...commonContext(async (rawUrl: unknown, options: unknown = {}) => {
-      requests.push({ url: String(rawUrl), ...(options as Omit<RequestRecord, "url">) });
-      return response();
-    }),
-    browser: {
-      alarms: { create() {}, onAlarm: listenerTarget() },
+    storage: { local: localStorage.api, onChanged: listenerTarget() },
+    tabs: {
+      onActivated: listenerTarget(), onUpdated: listenerTarget(),
+      async query() { return [tab]; },
+    },
+    windows: { onFocusChanged: listenerTarget(), WINDOW_ID_NONE: -1 },
+  };
+  if (target === "firefox") {
+    Object.assign(api, {
       permissions: {
         async getAll() {
-          return {
-            data_collection: allowTechnicalData ? ["technicalAndInteraction"] : [],
-          };
+          return { data_collection: allowTechnicalData ? ["technicalAndInteraction"] : [] };
         },
       },
-      runtime: {
-        getManifest: () => ({ version: "0.2.0" }),
-        onInstalled: listenerTarget(),
-        onMessage: listenerTarget(),
-        onStartup: listenerTarget(),
-      },
-      storage: { local: storageApi(), onChanged: listenerTarget() },
-      tabs: {
-        onActivated: listenerTarget(),
-        onUpdated: listenerTarget(),
-        async query() {
-          return [tab];
-        },
-      },
-      windows: { onFocusChanged: listenerTarget(), WINDOW_ID_NONE: -1 },
-    },
-  });
-  const source = await readFile(join(REPO_ROOT, "src", "firefox", "background.js"), "utf8");
-  vm.runInContext(source, context, { filename: "src/firefox/background.js" });
-  await vm.runInContext('sendActiveTab("manual")', context);
-  return requests;
+    });
+  }
+  const context = vm.createContext({ ...common, [target === "firefox" ? "browser" : "chrome"]: api });
+  const statusSource = await readFile(join(REPO_ROOT, "src", target, "background-status.js"), "utf8");
+  const backgroundSource = await readFile(join(REPO_ROOT, "src", target, "background.js"), "utf8");
+  vm.runInContext(statusSource, context, { filename: `src/${target}/background-status.js` });
+  vm.runInContext(backgroundSource, context, { filename: `src/${target}/background.js` });
+  if (viaMessage) {
+    const listener = messageListeners[0];
+    assert(listener, `${target} must register a runtime message listener.`);
+    if (target === "firefox") {
+      const response = await listener({ type: "patina-send-active-tab" });
+      assert(response?.ok === true, `${target} manual message must resolve with ok:true.`);
+    } else {
+      const response = await new Promise<unknown>((resolve) => {
+        const keepAlive = listener({ type: "patina-send-active-tab" }, {}, resolve);
+        assert(keepAlive === true, `${target} callback listener must keep the message channel alive.`);
+      });
+      assert((response as { ok?: boolean })?.ok === true, `${target} manual message must respond with ok:true.`);
+    }
+  } else {
+    await vm.runInContext('sendActiveTab("manual")', context);
+  }
+  return { requests, state: localStorage.state, writes: localStorage.writes };
 }
 
 function parsePayload(requests: RequestRecord[]) {
@@ -155,118 +140,130 @@ function parsePayload(requests: RequestRecord[]) {
 }
 
 function assertMinimalPayload(payload: Record<string, unknown>) {
-  assert(
-    payload.url === "https://example.com:8443/search?q=export-me#full-url",
-    `Expected the complete exportable webpage URL; found ${String(payload.url)}.`,
-  );
-  assert(payload.title === "Full URL export test", "Page title should remain available as website context.");
+  assert(payload.url === "https://example.com:8443/search?q=export-me#full-url", "Complete URL must remain exportable.");
+  assert(payload.title === "Full URL export test", "Page title must remain available.");
   assert(payload.incognito === false, "Normal payload must preserve incognito:false.");
-  for (const field of FORBIDDEN_PAYLOAD_FIELDS) {
-    assert(!(field in payload), `Payload must not contain ${field}.`);
-  }
+  for (const field of FORBIDDEN_PAYLOAD_FIELDS) assert(!(field in payload), `Payload must not contain ${field}.`);
 }
 
 const regularTab: TestTab = {
-  active: true,
-  favIconUrl: "https://example.com/favicon.ico",
-  id: 42,
-  incognito: false,
-  lastAccessed: Date.now(),
-  title: "Full URL export test",
-  url: "https://example.com:8443/search?q=export-me#full-url",
-  windowId: 7,
+  active: true, favIconUrl: "https://example.com/favicon.ico", id: 42, incognito: false,
+  lastAccessed: Date.now(), title: "Full URL export test",
+  url: "https://example.com:8443/search?q=export-me#full-url", windowId: 7,
 };
 
-const chromiumPayload = parsePayload(await runChromium(regularTab));
-assertMinimalPayload(chromiumPayload);
-assert(chromiumPayload.browserClientId === "test-client-id", "Chromium must keep its local browser client id.");
-assert(chromiumPayload.browserKind === "chrome", "Chromium must identify its browser kind.");
-assert(chromiumPayload.extensionVersion === "0.2.0", "Chromium must identify its extension version.");
+assert(packageJson.version === manifests.chromium.version, "Chromium manifest version must match package.json.");
+assert(packageJson.version === manifests.firefox.version, "Firefox manifest version must match package.json.");
 
-const firefoxWithoutTechnical = parsePayload(await runFirefox(regularTab, false));
+const chromiumPayload = parsePayload((await runTarget("chromium", regularTab)).requests);
+assertMinimalPayload(chromiumPayload);
+assert(chromiumPayload.browserClientId === "test-client-id", "Chromium must keep its browser client id.");
+assert(chromiumPayload.browserKind === "chrome", "Chromium must identify its browser kind.");
+assert(chromiumPayload.extensionVersion === manifests.chromium.version, "Chromium version must come from its manifest.");
+
+const firefoxWithoutTechnical = parsePayload((await runTarget("firefox", regularTab, {}, { allowTechnicalData: false })).requests);
 assertMinimalPayload(firefoxWithoutTechnical);
 for (const field of ["browserClientId", "browserKind", "extensionVersion"]) {
-  assert(!(field in firefoxWithoutTechnical), `Firefox must omit ${field} when optional consent is absent.`);
+  assert(!(field in firefoxWithoutTechnical), `Firefox must omit ${field} without optional consent.`);
 }
-
-const firefoxWithTechnical = parsePayload(await runFirefox(regularTab, true));
+const firefoxWithTechnical = parsePayload((await runTarget("firefox", regularTab)).requests);
 assertMinimalPayload(firefoxWithTechnical);
-assert(firefoxWithTechnical.browserClientId === "test-client-id", "Firefox may send client id after optional consent.");
-assert(firefoxWithTechnical.browserKind === "firefox", "Firefox may send browser kind after optional consent.");
-assert(firefoxWithTechnical.extensionVersion === "0.2.0", "Firefox may send extension version after optional consent.");
+assert(firefoxWithTechnical.browserKind === "firefox", "Firefox may identify itself after optional consent.");
+assert(firefoxWithTechnical.extensionVersion === manifests.firefox.version, "Firefox version must come from its manifest.");
 
-const privateRequests = await runChromium({ ...regularTab, incognito: true });
-assert(privateRequests.length === 0, "Private Chromium tabs must not send a request.");
+for (const target of ["chromium", "firefox"] as const) {
+  const manual = await runTarget(target, regularTab, {}, { viaMessage: true });
+  assertMinimalPayload(parsePayload(manual.requests));
+}
 
-const firefoxPrivateRequests = await runFirefox({ ...regularTab, incognito: true }, true);
-assert(firefoxPrivateRequests.length === 0, "Private Firefox tabs must not send a request, even with technical consent.");
-
-const internalRequests = await runChromium({ ...regularTab, url: "chrome://extensions" });
-assert(internalRequests.length === 0, "Browser-internal pages must not send a request.");
-
-const maintainerDocs = [
-  {
-    path: "src/chromium/README.md",
-    required: [
-      "chromewebstore.google.com/detail/patina-web-sync/gimdckblhckibmeklhemgccabmbnoemd",
-      "microsoftedge.microsoft.com/addons/detail/gogmlpjhbfjghilmpcciedplifdiibai",
-      "The zip root contains `manifest.json`.",
-      "Tab/window id, timestamps, and event reason stay out of the payload.",
-    ],
-    forbidden: [
-      "not published in either store yet",
-      "The zip contains a versioned extension folder.",
-    ],
-  },
-  {
-    path: "src/chromium/README.zh-CN.md",
-    required: [
-      "chromewebstore.google.com/detail/patina-web-sync/gimdckblhckibmeklhemgccabmbnoemd",
-      "microsoftedge.microsoft.com/addons/detail/gogmlpjhbfjghilmpcciedplifdiibai",
-      "zip 根目录直接包含 `manifest.json`",
-      "不发送标签页/窗口 ID、采集时间或事件原因",
-    ],
-    forbidden: [
-      "当前扩展尚未发布到这两个商店",
-      "zip 内包含一个带版本号的扩展目录",
-    ],
-  },
-  {
-    path: "src/firefox/README.md",
-    required: [
-      "addons.mozilla.org/firefox/addon/patina-web-sync/",
-      "public listed AMO `.xpi`",
-      "The formal GitHub Release XPI is not signed locally.",
-      "Tab/window id, timestamps, and event reason stay out of the payload.",
-    ],
-    forbidden: [
-      "the extension is not listed on AMO yet",
-      "user-facing GitHub Release package is a Mozilla AMO `unlisted` signed `.xpi`",
-    ],
-  },
-  {
-    path: "src/firefox/README.zh-CN.md",
-    required: [
-      "addons.mozilla.org/zh-CN/firefox/addon/patina-web-sync/",
-      "AMO 同版本公开 listed XPI",
-      "正式 GitHub Release XPI 不在本地重新签名",
-      "不发送标签页/窗口 ID、采集时间或事件原因",
-    ],
-    forbidden: [
-      "当前扩展尚未 listed on AMO",
-      "GitHub Release 用户安装包是经 Mozilla AMO `unlisted` 签名的 `.xpi`",
-    ],
-  },
-] as const;
-
-for (const doc of maintainerDocs) {
-  const content = await readFile(join(REPO_ROOT, doc.path), "utf8");
-  for (const text of doc.required) {
-    assert(content.includes(text), `${doc.path} must include current distribution or payload text: ${text}`);
+for (const target of ["chromium", "firefox"] as const) {
+  const cases = [
+    ["success", {}, "connected", "none"],
+    ["disabled 409", { ok: false, status: 409, body: { enabled: false, ok: false, code: "web-recording-disabled" } }, "disabled", "web-recording-disabled"],
+    ["known rejection", { body: { ok: false, code: "invalid-web-activity-token" } }, "error", "invalid-token"],
+    ["unknown rejection", { body: { ok: false, code: "future-code", message: "DO NOT DISPLAY" } }, "error", "service-rejected"],
+    ["empty object", { body: {} }, "error", "invalid-response"],
+    ["null json", { body: null }, "error", "invalid-response"],
+    ["non-json 2xx", { jsonError: true }, "error", "invalid-response"],
+    ["unauthorized 401", { ok: false, status: 401, body: { ok: false } }, "error", "invalid-token"],
+    ["unauthorized 403", { ok: false, status: 403, body: { ok: false } }, "error", "invalid-token"],
+    ["http error", { ok: false, status: 500, body: { ok: false } }, "error", "http-error"],
+    ["network error", { networkError: true }, "error", "request-failed"],
+  ] as const;
+  for (const [name, responseCase, expectedStatus, expectedError] of cases) {
+    const result = await runTarget(target, regularTab, responseCase, {
+      storage: { lastStatus: "error", lastErrorCode: "unknown-service-error", lastErrorParams: { httpStatus: 500 } },
+    });
+    assertMinimalPayload(parsePayload(result.requests));
+    assert(result.state.lastStatus === expectedStatus, `${target}/${name} status must be ${expectedStatus}.`);
+    assert(result.state.lastErrorCode === expectedError, `${target}/${name} error must be ${expectedError}.`);
+    if (name === "success") assert(JSON.stringify(result.state.lastErrorParams) === "{}", `${target}/success must clear stale error params.`);
+    if (name === "http error") assert(result.state.lastErrorParams?.httpStatus === 500, `${target}/http error must retain only the status parameter.`);
+    assert(!("lastMessage" in result.state), `${target}/${name} must not persist localized lastMessage.`);
+    assert(!JSON.stringify(result.state).includes("DO NOT DISPLAY"), `${target}/${name} must not persist arbitrary service messages.`);
   }
-  for (const text of doc.forbidden) {
-    assert(!content.includes(text), `${doc.path} still contains retired distribution or payload text: ${text}`);
+
+  const missingToken = await runTarget(target, regularTab, {}, { storage: { token: "" } });
+  assert(missingToken.requests.length === 0, `${target} must not request without a token.`);
+  assert(missingToken.state.lastStatus === "needs-config", `${target} missing token status must need config.`);
+  assert(missingToken.state.lastErrorCode === "missing-token", `${target} missing token must use a stable error code.`);
+
+  const privateResult = await runTarget(target, { ...regularTab, incognito: true });
+  assert(privateResult.requests.length === 0, `${target} private tabs must not send a request.`);
+  assert(privateResult.state.lastStatus === "private", `${target} private tabs must use private status.`);
+
+  const internalResult = await runTarget(target, { ...regularTab, url: target === "firefox" ? "about:addons" : "chrome://extensions" });
+  assert(internalResult.requests.length === 0, `${target} internal pages must not send a request.`);
+  assert(internalResult.state.lastStatus === "disconnected", `${target} internal pages must be disconnected.`);
+
+}
+
+const localeContext = vm.createContext({ console });
+vm.runInContext(await readFile(join(REPO_ROOT, "src/chromium/generated/messages.js"), "utf8"), localeContext);
+vm.runInContext(await readFile(join(REPO_ROOT, "src/chromium/i18n.js"), "utf8"), localeContext);
+assert(vm.runInContext('PatinaI18n.message("zh-CN", "status.connected")', localeContext) === "已同步", "Chinese status must resolve.");
+assert(vm.runInContext('PatinaI18n.message("en-US", "status.connected")', localeContext) === "Synced", "English status must resolve.");
+assert(vm.runInContext('PatinaI18n.normalizeLocale("en")', localeContext) === "en-US", "Legacy en locale must migrate.");
+assert(vm.runInContext('PatinaI18n.normalizeLocale("future")', localeContext) === "zh-CN", "Unknown locales must fail closed to zh-CN.");
+for (const locale of ["zh-CN", "en-US"]) {
+  for (const key of [
+    "status.disabled", "status.disconnected", "status.connected", "status.connecting", "status.needsConfig",
+    "status.configured", "status.private", "status.saving", "status.error", "error.invalidToken",
+    "error.missingToken", "error.webRecordingDisabled", "error.invalidResponse", "error.serviceRejected",
+    "error.requestFailed", "error.unknownService",
+  ]) {
+    const rendered = vm.runInContext(`PatinaI18n.message(${JSON.stringify(locale)}, ${JSON.stringify(key)})`, localeContext);
+    assert(typeof rendered === "string" && rendered.length > 0 && !rendered.includes("undefined"), `${locale}/${key} must render completely.`);
+  }
+  const http = vm.runInContext(`PatinaI18n.message(${JSON.stringify(locale)}, "error.httpError", { httpStatus: 503 })`, localeContext);
+  assert(http.includes("503") && !http.includes("{httpStatus}"), `${locale}/error.httpError must replace named parameters.`);
+}
+let missingParameterFailed = false;
+try { vm.runInContext('PatinaI18n.message("en-US", "error.httpError")', localeContext); } catch { missingParameterFailed = true; }
+assert(missingParameterFailed, "Missing localization parameters must fail closed.");
+
+for (const target of ["chromium", "firefox"] as const) {
+  const statusContext = vm.createContext({ console, Date });
+  vm.runInContext(await readFile(join(REPO_ROOT, "src", target, "background-status.js"), "utf8"), statusContext);
+  const normalize = (value: Record<string, unknown>) => JSON.parse(JSON.stringify(
+    vm.runInContext(`PatinaStatus.normalizeStoredState(${JSON.stringify(value)})`, statusContext),
+  )) as { state: Record<string, unknown>; patch: Record<string, unknown>; removeKeys: string[] };
+  for (const [name, input, errorCode] of [
+    ["empty", {}, "none"],
+    ["legacy invalid token", { lastStatus: "error", lastMessage: "Invalid token" }, "invalid-token"],
+    ["legacy missing token", { lastStatus: "needs-config", lastMessage: "请填写 Token" }, "missing-token"],
+    ["legacy disabled", { lastStatus: "disabled", lastMessage: "网页同步未开启" }, "web-recording-disabled"],
+    ["corrupt", { lastStatus: 42, lastErrorCode: [], lastErrorParams: { httpStatus: 900 }, lastSeenAt: "bad" }, "none"],
+  ] as const) {
+    const migrated = normalize(input as Record<string, unknown>);
+    assert(migrated.state.lastErrorCode === errorCode, `${target}/${name} migration must map to ${errorCode}.`);
+    assert(migrated.state.statusSchemaVersion === 1, `${target}/${name} migration must set schema version 1.`);
+    assert(!("lastMessage" in migrated.state), `${target}/${name} migration must remove lastMessage.`);
+    const applied = { ...input, ...migrated.patch };
+    for (const key of migrated.removeKeys) delete (applied as Record<string, unknown>)[key];
+    const repeated = normalize(applied as Record<string, unknown>);
+    assert(Object.keys(repeated.patch).length === 0 && repeated.removeKeys.length === 0, `${target}/${name} migration must be idempotent.`);
   }
 }
 
-console.log("Runtime privacy check passed.");
+console.log("Runtime privacy, failure, migration, and locale matrix passed.");

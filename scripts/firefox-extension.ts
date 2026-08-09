@@ -19,11 +19,15 @@ const LOCALE_FILES = [
 ] as const;
 const EXTENSION_FILES = [
   "manifest.json",
+  "background-status.js",
   "background.js",
+  "platform.js",
+  "i18n.js",
   "options.html",
   "options.js",
   "popup.html",
   "popup.js",
+  "generated/messages.js",
   ...LOCALE_FILES,
   ...Object.values(REQUIRED_ICON_FILES),
 ] as const;
@@ -192,6 +196,7 @@ async function checkExtension() {
 
   const manifest = await readManifest();
   const background = await readFile(join(SOURCE_DIR, "background.js"), "utf8");
+  const backgroundStatus = await readFile(join(SOURCE_DIR, "background-status.js"), "utf8");
   const csp = manifest.content_security_policy?.extension_pages ?? "";
 
   if (manifest.manifest_version !== 3) {
@@ -210,8 +215,12 @@ async function checkExtension() {
   if (manifest.background?.service_worker) {
     fail("Firefox extension check failed. background.service_worker must not be used for this target.");
   }
-  if (manifest.background?.scripts?.length !== 1 || manifest.background.scripts[0] !== "background.js") {
-    fail("Firefox extension check failed. background.scripts must contain background.js.");
+  if (
+    manifest.background?.scripts?.length !== 2
+    || manifest.background.scripts[0] !== "background-status.js"
+    || manifest.background.scripts[1] !== "background.js"
+  ) {
+    fail("Firefox extension check failed. background.scripts must load background-status.js before background.js.");
   }
   assertExactStringSet("permissions", manifest.permissions, ["alarms", "storage", "tabs"]);
   assertExactStringSet("host_permissions", manifest.host_permissions, ["http://127.0.0.1/*", "http://localhost/*"]);
@@ -258,8 +267,11 @@ async function checkExtension() {
       fail(`Firefox extension check failed. Background script must not send unnecessary field: ${forbiddenField}`);
     }
   }
-  if (!background.includes("data?.ok !== true")) {
+  if (!background.includes("classifyBridgeResponse") || !backgroundStatus.includes("data.ok !== true")) {
     fail("Firefox extension check failed. Background script must require explicit ok:true bridge responses.");
+  }
+  if (background.includes("lastMessage")) {
+    fail("Firefox extension check failed. Background script must store language-neutral status codes.");
   }
   if (background.includes("chrome.")) {
     fail("Firefox extension check failed. Use browser.* APIs for this target.");
