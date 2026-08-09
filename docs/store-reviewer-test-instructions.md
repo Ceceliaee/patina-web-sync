@@ -1,6 +1,6 @@
 # Store Reviewer Test Instructions
 
-Verified for candidate `0.2.0` on July 10, 2026.
+Verified for candidate `0.2.1` on August 9, 2026.
 
 ## Product and Test Boundary
 
