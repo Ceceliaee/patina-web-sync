@@ -250,23 +250,10 @@ async function checkExtension() {
   if (!background.includes("function isPrivateTab") || !background.includes("tab?.incognito === true")) {
     fail("Firefox extension check failed. Background script must explicitly detect private/incognito tabs.");
   }
-  if (!background.includes("setStatus(\"private\")")) {
-    fail("Firefox extension check failed. Background script must mark private/incognito tabs without sending them.");
-  }
-  if (!background.includes("incognito: tab.incognito")) {
-    fail("Firefox extension check failed. Background script must preserve the v1 incognito field for non-private payloads.");
-  }
-  if (!background.includes("function toTrackableUrl") || !background.includes("url: fullUrl")) {
-    fail("Firefox extension check failed. Background script must preserve the full active webpage URL.");
-  }
   if (!background.includes("browser.permissions.getAll") || !background.includes("technicalAndInteraction")) {
     fail("Firefox extension check failed. Technical data must be gated by the optional built-in consent permission.");
   }
-  for (const forbiddenField of ["tabId:", "windowId:", "capturedAtMs:", "eventReason,"]) {
-    if (background.includes(forbiddenField)) {
-      fail(`Firefox extension check failed. Background script must not send unnecessary field: ${forbiddenField}`);
-    }
-  }
+  // Payload privacy and omitted fields are verified by check:runtime-privacy.
   if (!background.includes("classifyBridgeResponse") || !backgroundStatus.includes("data.ok !== true")) {
     fail("Firefox extension check failed. Background script must require explicit ok:true bridge responses.");
   }

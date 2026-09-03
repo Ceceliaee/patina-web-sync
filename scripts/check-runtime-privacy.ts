@@ -65,22 +65,30 @@ async function runTarget(
   target: Target,
   tab: TestTab,
   responseCase: ResponseCase = {},
-  { allowTechnicalData = true, storage = {} as Record<string, unknown>, viaMessage = false } = {},
+  { allowTechnicalData = true, storage = {} as Record<string, unknown>, viaMessage = false, focused = true, skipInitialSend = false } = {},
 ) {
   const requests: RequestRecord[] = [];
+  const timers = new Map<number, { callback: () => unknown; delay: number }>();
+  let nextTimer = 0;
+  let requestHold: { entered: () => void; release: Promise<void> } | null = null;
+  let faviconHold: { entered: () => void; release: Promise<void> } | null = null;
   const messageListeners: Function[] = [];
   const localStorage = storageApi({ clientId: "test-client-id", port: "12345", token: "test-token", ...storage });
   const fetchImpl = async (rawUrl: unknown, options: unknown = {}) => {
     const url = String(rawUrl);
-    if (url.includes("/_favicon/")) return { ok: false, status: 404 };
+    if (url.includes("/_favicon/")) {
+      if (faviconHold) { const held = faviconHold; faviconHold = null; held.entered(); await held.release; }
+      return { ok: false, status: 404 };
+    }
     requests.push({ url, ...(options as Omit<RequestRecord, "url">) });
+    if (requestHold) { const held = requestHold; requestHold = null; held.entered(); await held.release; }
     if (responseCase.networkError) throw new Error("network unavailable");
     return bridgeResponse(responseCase);
   };
   const common = {
-    URL, Uint8Array, clearTimeout() {}, console, crypto: globalThis.crypto, fetch: fetchImpl,
+    URL, Uint8Array, AbortController, AbortSignal, clearTimeout(id: number) { timers.delete(id); }, console, crypto: globalThis.crypto, fetch: fetchImpl,
     importScripts() {}, navigator: { userAgent: target === "firefox" ? "Mozilla/5.0 Firefox" : "Mozilla/5.0 Chrome" },
-    setTimeout() { return 1; },
+    setTimeout(callback: () => unknown, delay: number) { const id = ++nextTimer; timers.set(id, { callback, delay }); return id; },
   };
   const api = {
     alarms: { create() {}, onAlarm: listenerTarget() },
@@ -91,10 +99,10 @@ async function runTarget(
     },
     storage: { local: localStorage.api, onChanged: listenerTarget() },
     tabs: {
-      onActivated: listenerTarget(), onUpdated: listenerTarget(),
+      onActivated: listenerTarget(), onRemoved: listenerTarget(), onUpdated: listenerTarget(),
       async query() { return [tab]; },
     },
-    windows: { onFocusChanged: listenerTarget(), WINDOW_ID_NONE: -1 },
+    windows: { async getLastFocused() { return { id: tab.windowId, focused, incognito: tab.incognito }; }, onRemoved: listenerTarget(), onFocusChanged: listenerTarget(), WINDOW_ID_NONE: -1 },
   };
   if (target === "firefox") {
     Object.assign(api, {
@@ -110,7 +118,7 @@ async function runTarget(
   const backgroundSource = await readFile(join(REPO_ROOT, "src", target, "background.js"), "utf8");
   vm.runInContext(statusSource, context, { filename: `src/${target}/background-status.js` });
   vm.runInContext(backgroundSource, context, { filename: `src/${target}/background.js` });
-  if (viaMessage) {
+  if (!skipInitialSend && viaMessage) {
     const listener = messageListeners[0];
     assert(listener, `${target} must register a runtime message listener.`);
     if (target === "firefox") {
@@ -123,10 +131,23 @@ async function runTarget(
       });
       assert((response as { ok?: boolean })?.ok === true, `${target} manual message must respond with ok:true.`);
     }
-  } else {
+  } else if (!skipInitialSend) {
     await vm.runInContext('sendActiveTab("manual")', context);
   }
-  return { requests, state: localStorage.state, writes: localStorage.writes };
+  return {
+    requests, state: localStorage.state, writes: localStorage.writes, context,
+    setFocused(value: boolean) { focused = value; },
+    holdRequest(entered: () => void, release: Promise<void>) { requestHold = { entered, release }; },
+    holdFavicon(entered: () => void, release: Promise<void>) { faviconHold = { entered, release }; },
+    async fireTimer(delay: number) {
+      const entry = [...timers].find(([, timer]) => timer.delay === delay);
+      if (!entry) return false;
+      timers.delete(entry[0]);
+      entry[1].callback();
+      await vm.runInContext("syncPromise", context);
+      return true;
+    },
+  };
 }
 
 function parsePayload(requests: RequestRecord[]) {
@@ -267,3 +288,81 @@ for (const target of ["chromium", "firefox"] as const) {
 }
 
 console.log("Runtime privacy, failure, migration, and locale matrix passed.");
+
+// Exercise the shipped workers across changes, rather than only isolated payloads.
+for (const target of ["chromium", "firefox"] as const) {
+  const background = await runTarget(target, { ...regularTab }, {}, { focused: false });
+  assert(background.requests.length === 0, target + " background window must not renew a page");
+  const inactive = await runTarget(target, { ...regularTab, active: false });
+  assert(inactive.requests.length === 0, target + " manual sync must not use an inactive fallback");
+  for (const stop of ["blur", "internal", "private"]) {
+    const tab = { ...regularTab };
+    const runtime = await runTarget(target, tab, {}, { allowTechnicalData: false });
+    if (stop === "blur") runtime.setFocused(false);
+    else if (stop === "private") { tab.incognito = true; tab.url = "https://private.test/secret"; tab.title = "private title"; }
+    else tab.url = "about:config";
+    await vm.runInContext('sendActiveTab("periodic")', runtime.context);
+    assert(runtime.requests.length === 2, target + "/" + stop + " must revoke a previously sent observation");
+    const revoked = JSON.parse(runtime.requests[1].body!) as Record<string,unknown>;
+    assert(revoked.url === "about:blank", "revocation uses a fixed non-page sentinel");
+    assert(!("title" in revoked) && !("favIconUrl" in revoked), "revocation cannot expose private or internal page metadata");
+    for (const key of FORBIDDEN_PAYLOAD_FIELDS) assert(!(key in revoked), "revocation must omit " + key);
+    if (target === "firefox") for (const key of ["browserClientId","browserKind","extensionVersion"]) assert(!(key in revoked), "revocation must honor optional consent");
+    await vm.runInContext('sendActiveTab("periodic")', runtime.context);
+    assert(runtime.requests.length === 2, "a revoked background state cannot repeatedly send stops");
+    Object.assign(tab, regularTab); runtime.setFocused(true);
+    await vm.runInContext('sendActiveTab("manual")', runtime.context);
+    assert(Number(runtime.requests.length) === 3, "returning requires a fresh page observation");
+  }
+  const tab = { ...regularTab };
+  const runtime = await runTarget(target, tab, {}, { skipInitialSend: true });
+  let entered!: () => void, release!: () => void;
+  const started = new Promise<void>((resolve) => { entered = resolve; });
+  const held = new Promise<void>((resolve) => { release = resolve; });
+  runtime.holdRequest(entered, held);
+  const first = vm.runInContext('sendActiveTab("manual")', runtime.context);
+  await started;
+  tab.url = "https://second.test/";
+  const second = vm.runInContext('sendActiveTab("manual")', runtime.context);
+  tab.url = "https://latest.test/";
+  const latest = vm.runInContext('sendActiveTab("manual")', runtime.context);
+  assert(runtime.requests.length === 1, "requests must be serialized while the first is in flight");
+  release(); await Promise.all([first, second, latest]);
+  assert(Number(runtime.requests.length) === 2 && JSON.parse(runtime.requests[1].body!).url === tab.url, "pending work must coalesce to the latest observation");
+}
+{
+  const tab = { ...regularTab };
+  const runtime = await runTarget("chromium", tab, {}, { skipInitialSend: true });
+  let entered!: () => void, release!: () => void;
+  const started = new Promise<void>((resolve) => { entered = resolve; });
+  const held = new Promise<void>((resolve) => { release = resolve; });
+  runtime.holdFavicon(entered, held);
+  const work = vm.runInContext('sendActiveTab("manual")', runtime.context);
+  await started;
+  tab.incognito = true; tab.url = "https://private.test/";
+  vm.runInContext('queueActiveTab("tab-updated")', runtime.context);
+  release(); await work;
+  assert(runtime.requests.length === 0, "a slow favicon cannot publish a page after its observation was invalidated");
+}
+console.log("Foreground, revocation, ordering, and bounded-worker timing matrix passed.");
+
+for (const target of ["chromium", "firefox"] as const) {
+  const response = { body: { enabled: true, ok: true, changed: false } };
+  const retry = await runTarget(target, { ...regularTab }, response);
+  assert(await retry.fireTimer(1_000), "native-sample race must schedule a prompt retry");
+  assert(retry.requests.length === 2, "native-sample retry sends a new observation");
+  assert(!(await retry.fireTimer(1_000)), "continued rejection must not create a retry loop");
+  const tab = { ...regularTab };
+  const invalidated = await runTarget(target, tab, response);
+  tab.incognito = true; tab.url = "https://private.test/";
+  vm.runInContext('queueActiveTab("tab-updated")', invalidated.context);
+  assert(!(await invalidated.fireTimer(1_000)), "a new observation must cancel the pending retry");
+  await invalidated.fireTimer(200);
+  assert(invalidated.requests.length === 2 && JSON.parse(invalidated.requests[1].body!).url === "about:blank", "private transition revokes instead of retrying prior metadata");
+}
+
+for (const target of ["chromium","firefox"] as const) {
+  const runtime = await runTarget(target, { ...regularTab, incognito: true, url: "https://private.test/" }, {}, { storage: { webActivityPublished: true }, allowTechnicalData: false });
+  assert(runtime.requests.length === 1 && JSON.parse(runtime.requests[0].body!).url === "about:blank", "worker restart must revoke an earlier observation without private metadata");
+  assert(runtime.state.webActivityPublished === false, "successful revocation clears persisted publication state");
+}

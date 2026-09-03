@@ -208,20 +208,7 @@ async function checkExtension() {
   if (!background.includes("function isPrivateTab") || !background.includes("tab?.incognito === true")) {
     fail("Chromium extension check failed. Background worker must explicitly detect private/incognito tabs.");
   }
-  if (!background.includes("setStatus(\"private\")")) {
-    fail("Chromium extension check failed. Background worker must mark private/incognito tabs without sending them.");
-  }
-  if (!background.includes("incognito: tab.incognito")) {
-    fail("Chromium extension check failed. Background worker must preserve the v1 incognito field for non-private payloads.");
-  }
-  if (!background.includes("function toTrackableUrl") || !background.includes("url: fullUrl")) {
-    fail("Chromium extension check failed. Background worker must preserve the full active webpage URL.");
-  }
-  for (const forbiddenField of ["tabId:", "windowId:", "capturedAtMs:", "eventReason,"]) {
-    if (background.includes(forbiddenField)) {
-      fail(`Chromium extension check failed. Background worker must not send unnecessary field: ${forbiddenField}`);
-    }
-  }
+  // Payload privacy and omitted fields are verified by check:runtime-privacy.
   if (!background.includes("classifyBridgeResponse") || !backgroundStatus.includes("data.ok !== true")) {
     fail("Chromium extension check failed. Background worker must require explicit ok:true bridge responses.");
   }

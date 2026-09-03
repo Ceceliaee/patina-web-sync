@@ -12,6 +12,11 @@ const STORAGE_DEFAULTS = {
 };
 
 let pendingActiveTabTimer = null;
+let observationGeneration = 0;
+let pendingReason = null;
+let syncPromise = null;
+let activeRequest = null;
+let hasPublishedActivity = false;
 
 function browserKind() {
   const ua = navigator.userAgent.toLowerCase();
@@ -82,25 +87,21 @@ function toTrackableUrl(rawUrl) {
 
 function isTrackableTab(tab) {
   if (isPrivateTab(tab)) return false;
-  return Boolean(toTrackableUrl(tab?.url));
+  return tab?.active === true && Boolean(toTrackableUrl(tab?.url));
 }
 
 function isPrivateTab(tab) {
   return tab?.incognito === true;
 }
 
-async function getActiveTrackableTab(eventReason) {
-  const activeTabs = await browser.tabs.query({ active: true, lastFocusedWindow: true });
+async function getActiveTrackableTab() {
+  const window = await browser.windows.getLastFocused();
+  if (!window?.focused) return { tab: null, reason: "none" };
+  if (window.incognito === true) return { tab: null, reason: "private" };
+  const activeTabs = await browser.tabs.query({ active: true, windowId: window.id });
   const activeTab = activeTabs[0];
   if (isPrivateTab(activeTab)) return { tab: null, reason: "private" };
-  if (isTrackableTab(activeTab)) return { tab: activeTab, reason: "" };
-  if (eventReason !== "manual") return { tab: null, reason: "none" };
-
-  const tabs = await browser.tabs.query({ lastFocusedWindow: true });
-  const fallbackTab = tabs
-    .filter(isTrackableTab)
-    .sort((left, right) => (right.lastAccessed || 0) - (left.lastAccessed || 0))[0] || null;
-  return { tab: fallbackTab, reason: fallbackTab ? "" : "none" };
+  return isTrackableTab(activeTab) ? { tab: activeTab, reason: "" } : { tab: null, reason: "none" };
 }
 
 function resolveFaviconSource(tab) {
@@ -119,47 +120,49 @@ async function allowsTechnicalData() {
   }
 }
 
-async function sendActiveTab(eventReason = "refresh") {
+async function sendObservation(eventReason, generation) {
   const settings = await getSettings();
   if (!settings.port || !settings.token) {
     await setStatus("needs-config", settings.token ? "none" : "missing-token");
     return;
   }
 
+  const published = await browser.storage.local.get({ webActivityPublished: false });
+  hasPublishedActivity = hasPublishedActivity || published.webActivityPublished === true;
   const activeTab = await getActiveTrackableTab(eventReason);
   const tab = activeTab.tab;
-  if (!tab) {
-    if (activeTab.reason === "private") {
-      await setStatus("private");
-    } else {
-      await setStatus("disconnected");
-    }
+  if (generation !== observationGeneration) return;
+  const inactiveStatus = activeTab.reason === "private" ? "private" : "disconnected";
+  if (!tab && !hasPublishedActivity) {
+    await setStatus(inactiveStatus);
     return;
   }
-
-  await setStatus("connecting");
-  const fullUrl = toTrackableUrl(tab.url);
-  if (!fullUrl) {
-    await setStatus("disconnected");
-    return;
-  }
-  const favIconUrl = resolveFaviconSource(tab);
+  // A fixed non-page sentinel revokes our previous observation without exposing
+  // the new private/internal page or the reason it stopped being recordable.
   const payload = {
     protocolVersion: PROTOCOL_VERSION,
-    url: fullUrl,
-    title: tab.title,
-    favIconUrl,
-    incognito: tab.incognito,
-  };
-  if (await allowsTechnicalData()) {
-    Object.assign(payload, {
-      browserClientId: settings.clientId,
-      browserKind: browserKind(),
-      extensionVersion: EXTENSION_VERSION,
-    });
-  }
 
+    url: tab ? toTrackableUrl(tab.url) : "about:blank",
+    ...(tab ? { title: tab.title, favIconUrl: resolveFaviconSource(tab) } : {}),
+    incognito: false,
+  };
+  if (await allowsTechnicalData()) Object.assign(payload, {
+    browserClientId: settings.clientId, browserKind: browserKind(), extensionVersion: EXTENSION_VERSION,
+  });
+  const current = await getActiveTrackableTab();
+  if (generation !== observationGeneration) return;
+  if (tab ? (!current.tab || current.tab.id !== tab.id || current.tab.windowId !== tab.windowId || current.tab.url !== tab.url || current.tab.title !== tab.title) : current.tab) return;
+  await setStatus(tab ? "connecting" : inactiveStatus);
+  if (generation !== observationGeneration) return;
+  activeRequest = new AbortController();
+  const timeout = setTimeout(() => activeRequest?.abort(), 5_000);
   try {
+    if (tab) {
+      hasPublishedActivity = true;
+      await browser.storage.local.set({ webActivityPublished: true });
+      if (generation !== observationGeneration) return;
+    }
+
     const response = await fetch(webActivityUrl(endpointFromPort(settings.port)), {
       method: "POST",
       headers: {
@@ -168,6 +171,7 @@ async function sendActiveTab(eventReason = "refresh") {
       },
       body: JSON.stringify(payload),
       cache: "no-store",
+      signal: activeRequest.signal,
     });
     let data = null;
     let jsonParsed = false;
@@ -178,13 +182,50 @@ async function sendActiveTab(eventReason = "refresh") {
       jsonParsed = false;
     }
     const result = statusModel.classifyBridgeResponse(response, data, jsonParsed);
-    await setStatus(result.lastStatus, result.lastErrorCode, result.lastErrorParams);
+    if (generation !== observationGeneration) return;
+    if (!tab && result.lastStatus === "connected") {
+      hasPublishedActivity = false;
+      await browser.storage.local.set({ webActivityPublished: false });
+    }
+    await setStatus(tab ? result.lastStatus : inactiveStatus, tab ? result.lastErrorCode : "none", tab ? result.lastErrorParams : {});
+    // A focus notification can precede the desktop's next native sample.
+    // Retry one fresh observation, without extending or replaying the old one.
+    if (generation === observationGeneration && tab && result.lastStatus === "connected" && data?.changed === false && eventReason !== "native-retry") {
+      if (pendingActiveTabTimer) clearTimeout(pendingActiveTabTimer);
+      pendingActiveTabTimer = setTimeout(() => {
+        pendingActiveTabTimer = null;
+        if (generation === observationGeneration) void sendActiveTab("native-retry");
+      }, 1_000);
+    }
   } catch {
-    await setStatus("error", "request-failed");
+    if (generation === observationGeneration) await setStatus("error", "request-failed");
+  } finally {
+    clearTimeout(timeout);
+    activeRequest = null;
   }
 }
 
+function sendActiveTab(eventReason = "refresh") {
+  observationGeneration += 1;
+  pendingReason = eventReason;
+  activeRequest?.abort();
+  if (!syncPromise) {
+    syncPromise = (async () => {
+      while (pendingReason !== null) {
+        const reason = pendingReason;
+        pendingReason = null;
+        const generation = observationGeneration;
+        try { await sendObservation(reason, generation); }
+        catch { if (generation === observationGeneration) await setStatus("error", "request-failed"); }
+      }
+    })().finally(() => { syncPromise = null; });
+  }
+  return syncPromise;
+}
+
 function queueActiveTab(eventReason) {
+  observationGeneration += 1;
+  activeRequest?.abort();
   if (pendingActiveTabTimer) clearTimeout(pendingActiveTabTimer);
   pendingActiveTabTimer = setTimeout(() => {
     pendingActiveTabTimer = null;
@@ -203,8 +244,10 @@ browser.runtime.onStartup.addListener(() => {
 });
 
 browser.tabs.onActivated.addListener(() => queueActiveTab("tab-activated"));
-browser.windows.onFocusChanged.addListener((windowId) => {
-  if (windowId !== browser.windows.WINDOW_ID_NONE) queueActiveTab("window-focused");
+browser.tabs.onRemoved.addListener(() => queueActiveTab("tab-removed"));
+browser.windows.onRemoved.addListener(() => queueActiveTab("window-removed"));
+browser.windows.onFocusChanged.addListener(() => {
+  queueActiveTab("window-focus-changed");
 });
 browser.tabs.onUpdated.addListener((_tabId, changeInfo, tab) => {
   if (!tab.active) return;

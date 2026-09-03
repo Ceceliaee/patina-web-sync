@@ -33,11 +33,13 @@ Browser extension -> local HTTP POST -> Patina desktop app -> local Patina data 
 ## 运行流程
 
 1. background script 监听 install、startup、tab activation、tab update、window focus 和周期性 alarm 等浏览器事件。
-2. 扩展从最后聚焦的浏览器窗口读取当前可记录的活动标签页。
+2. 扩展确认最后聚焦窗口仍处于 `focused` 状态，再读取该窗口真正活动的普通标签。失焦、私密窗口及内部页不提供页面元数据；手动同步也遵循相同资格。
 3. 扩展校验活动 URL 为普通 `http` / `https` 页面，再构造包含完整 URL、标题、图标信息和 `incognito: false` 的协议 payload。Chromium 携带 client id、浏览器类型和扩展版本；Firefox 只在用户授予 optional technical consent 后携带这些字段。
 4. 扩展使用 `Authorization: Bearer <token>` 向 `http://127.0.0.1:<port>/web-activity` 发送 payload。
 5. Patina 按 Patina 拥有的规则接收、拒绝、存储、清洗和展示记录。
-6. 扩展只保存轻量的本地连接状态，供 popup/options UI 解释当前状态。
+6. 扩展保存轻量本地连接状态及“可能已有观察”的布尔值。停止通知成功后清除布尔值；worker 重启后仍可撤销此前观察，通知不携带新页面信息。
+
+自动、周期、手动和停止通知共用单个发送 worker，并仅保留最新待处理请求。新事件撤销旧观察代次、取消在途 HTTP；favicon 与权限查询完成后重新验证焦点和标签，旧结果不得晚到覆盖新页面。HTTP 超时为 5 秒，Chromium 本地 favicon 查询超时为 2 秒；有限观察、停止通知及接收端约束由协议文档统一定义。
 
 ## 共享 UI 与平台边界
 

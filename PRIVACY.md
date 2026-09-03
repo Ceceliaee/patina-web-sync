@@ -1,6 +1,6 @@
 # Patina Web Sync Privacy Policy
 
-Last updated: July 11, 2026
+Last updated: September 3, 2026
 
 English is the primary policy text. The Simplified Chinese section below is an equivalent convenience translation.
 
@@ -31,6 +31,7 @@ The extension also handles local configuration and state:
 - Generated browser client identifier.
 - Language preference.
 - Recent connection and sync status.
+- A boolean indicating that a prior observation may still need to be stopped after the background worker restarts.
 
 ### Automatic and Manual Triggers
 
@@ -53,6 +54,8 @@ Website activity records, including the complete URL, are stored separately by t
 ### Private Browsing and Unsupported Pages
 
 Incognito, private, and InPrivate tabs are detected and skipped before website icon resolution or payload construction. Their complete URL, title, icon, and sync payload are not sent to Patina. Browser internal pages, extension pages, and other non-`http`/`https` pages are also skipped.
+
+If an earlier regular page may still be counted, losing focus or moving to an unsupported or private page can send a fixed stop notification using `url: "about:blank"` and `incognito: false`. It contains no new page URL, title, icon, or stop reason. Optional technical fields follow the same consent rules. The local boolean is cleared after a successful stop; it contains no browsing history.
 
 Patina retains receiver-side private-payload rejection as a compatibility safeguard for older or abnormal local clients. It is not a substitute for the extension's pre-send filtering.
 
@@ -102,7 +105,7 @@ Patina Web Sync 不提供账号、云同步、广告、分析或远程采集服�
 
 扩展不会发送标签页 ID、窗口 ID、采集时间或同步事件原因。
 
-扩展还会处理以下本机配置和状态：Patina 本机端口、Patina bearer Token、扩展生成的浏览器客户端标识、语言偏好以及最近连接和同步状态。
+扩展还会处理以下本机配置和状态：Patina 本机端口、Patina bearer Token、扩展生成的浏览器客户端标识、语言偏好、最近连接和同步状态，以及表示旧观察可能仍需停止的布尔值。
 
 ### 自动与手动触发
 
@@ -123,6 +126,8 @@ Patina Web Sync 不提供账号、云同步、广告、分析或远程采集服�
 ### 私密窗口和不支持页面
 
 扩展会在读取网站图标或构造 payload 之前识别并跳过无痕、私密和 InPrivate 标签页，不会向 Patina 发送其完整 URL、标题、图标或同步 payload。浏览器内部页面、扩展页面和其他非 `http`/`https` 页面也会被跳过。
+
+若此前普通网页可能仍在计时，失焦或进入不支持页面、私密页面时，扩展可以发送固定停止通知：`url: "about:blank"`、`incognito: false`。通知不含新页面 URL、标题、图标或停止原因；可选技术字段仍遵循原有同意规则。本地布尔值在停止成功后清除，不包含浏览历史。
 
 Patina 接收端继续保留拒绝私密 payload 的兼容保护，用于应对旧客户端或异常本机客户端；它不替代扩展发送前的过滤。
 
