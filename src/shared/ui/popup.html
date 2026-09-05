@@ -131,12 +131,15 @@
 
       .actions {
         display: grid;
-        grid-template-columns: 1fr 92px;
+        grid-template-columns: minmax(0, 1fr) auto;
         gap: 8px;
       }
 
       button {
+        min-width: 0;
         min-height: 36px;
+        padding: 8px;
+        overflow-wrap: anywhere;
         border: 1px solid var(--border);
         border-radius: 8px;
         background: var(--panel);

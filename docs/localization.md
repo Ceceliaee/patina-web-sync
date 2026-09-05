@@ -8,10 +8,10 @@ Patina Web Sync 的本地化必须保证：同一条用户可见消息只有一�
 
 ## 支持语言与标识
 
-- 规范 locale 为 `zh-CN` 与 `en-US`。
+- 规范 locale 为 `zh-CN`、`en-US` 与 `es`（Español）。
 - 默认 locale 为 `zh-CN`，保持现有产品行为。
 - 旧 storage 值 `en` 必须迁移为 `en-US`；未知值回落并写回 `zh-CN`。
-- WebExtension locale 目录映射为 `zh-CN -> zh_CN`、`en-US -> en`。
+- WebExtension locale 目录映射为 `zh-CN -> zh_CN`、`en-US -> en`、`es -> es`。
 - 新语言必须先加入 schema、registry、review manifest 和自测，再生成目标文件。
 
 ## 唯一事实源
@@ -101,7 +101,11 @@ HTTP status、服务端自由文本与 JavaScript exception 不进入错误码�
 
 已有 `0.2.0` 公开文案可以作为 baseline import，但新增或改变的发布文案仍需记录实际 reviewer。生成器不能自动把内容标记为人工审核完成。执行代理可以记录实现审查，不能冒充维护者人工审校。
 
-日常 `npm run check:i18n` 允许 `status: "pending"`，使实现可以继续验证；正式 tag 工作流额外运行 `npm run check:i18n:release`，只有两个 locale 都记录 `status: "approved"`、真实 reviewer 和当前内容哈希时才允许发布。
+日常 `npm run check:i18n` 允许 `status: "pending"`，使实现可以继续验证；正式 tag 工作流额外运行 `npm run check:i18n:release`，所有生产 locale 均须记录 `status: "approved"`、真实 reviewer 和当前内容哈希。未知审核方式不允许发布。
+
+接入前由维护者确认翻译与审核安排。完成文案复核后可记录 `copy-review`；既有 `maintainer-copy-review` 记录继续有效。审核策略由 `scripts/i18n/review-policy.ts` 统一校验，不按语言设置例外。接入决定与验收结果留在对应执行记录；一项决定不自动改变其他语言的贡献安排。不允许删除哈希检查、冒充人工审校或把未复核状态放行。
+
+Options 立即保存语言，Popup 读取已保存语言，不随桌面或浏览器自动切换。浏览器管理页的 manifest 名称和描述由浏览器 locale 机制选择，不能承诺与 Options 选择即时联动。翻译反馈需定位产品、版本、页面及预期含义，修正时同时核对两端术语，不收集私人活动数据或 Token。
 
 ## 硬编码规则
 

@@ -1,0 +1,11 @@
+{
+  "extensionDescription": {
+    "message": "Sincroniza automáticamente el sitio web activo no privado con Patina local para registrar el tiempo."
+  },
+  "extensionName": {
+    "message": "Patina Web Sync"
+  },
+  "storeShortDescription": {
+    "message": "Sincroniza automáticamente el sitio web activo no privado con Patina local para registrar el tiempo."
+  }
+}

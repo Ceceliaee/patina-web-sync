@@ -113,7 +113,14 @@ for (const target of TARGETS) {
   key(options.dom.window, languageOptions[1], "Home");
   assert(document.activeElement === languageOptions[0], `${target} Home must focus the first locale.`);
   key(options.dom.window, languageOptions[0], "End");
-  assert(document.activeElement === languageOptions[1], `${target} End must focus the last locale.`);
+  assert(document.activeElement === languageOptions.at(-1), `${target} End must focus the last locale.`);
+  key(options.dom.window, languageOptions.at(-1)!, "Enter");
+  await flush();
+  assert(document.documentElement.lang === "es" && options.mock.state.language === "es", `${target} Spanish must render and persist.`);
+  assert(options.mock.state.port === "12345" && options.mock.state.token === "test-token", `${target} Language must not change connection settings.`);
+  assert(status.textContent?.includes("Sincronizada"), `${target} Spanish must localize the current status.`);
+  languageButton.click();
+  key(options.dom.window, languageOptions.at(-1)!, "ArrowUp");
   key(options.dom.window, languageOptions[1], "Enter");
   await flush();
   assert(document.documentElement.lang === "en-US" && options.mock.state.language === "en-US", `${target} Enter must persist and render canonical en-US.`);
@@ -150,6 +157,13 @@ for (const target of TARGETS) {
   assert(badge.getAttribute("role") === "status" && badge.getAttribute("aria-live") === "polite" && badge.getAttribute("aria-atomic") === "true", `${target} Popup status live-region contract is incomplete.`);
   assert(popupDocument.querySelector<HTMLButtonElement>("#send-tab")?.disabled === false, `${target} Popup sync action must remain operable for a trackable page.`);
   popup.dom.window.close();
+  const spanishPopup = await loadPage(target, "popup", {
+    port: "12345", token: "test-token", language: "es", lastStatus: "connected",
+    lastErrorCode: "none", lastErrorParams: {}, lastSeenAt: 1, statusSchemaVersion: 1,
+  });
+  assert(spanishPopup.dom.window.document.documentElement.lang === "es", `${target} Popup must restore Spanish.`);
+  assert(spanishPopup.dom.window.document.querySelector("#status-badge")?.textContent === "Sincronizada", `${target} Spanish Popup must render stored status.`);
+  spanishPopup.dom.window.close();
 }
 
 const sharedOptionsHtml = await readFile(join(REPO_ROOT, "src/shared/ui/options.html"), "utf8");

@@ -5,21 +5,14 @@ import { SUPPORTED_LOCALES } from "../../locales/registry.ts";
 import { buildGeneratedOutputs, localeContentHash, validateRegistry } from "./model.ts";
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";
+import { validateCopyReview } from "./review-policy.ts";
 
 const REPO_ROOT = dirname(dirname(dirname(fileURLToPath(import.meta.url))));
 const errors = validateRegistry();
 for (const locale of SUPPORTED_LOCALES) {
   const review = reviewManifest[locale];
   const actualHash = localeContentHash(locale);
-  if (review.contentHash !== actualHash) {
-    errors.push(`${locale} review hash is stale. Expected ${actualHash}; found ${review.contentHash}.`);
-  }
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(review.reviewedAt) || !review.reviewer.trim()) {
-    errors.push(`${locale} review metadata is incomplete.`);
-  }
-  if (!(["pending", "approved"] as const).includes(review.status)) {
-    errors.push(`${locale} review status must be pending or approved.`);
-  }
+  errors.push(...validateCopyReview(locale, review, actualHash, false));
 }
 
 for (const output of await buildGeneratedOutputs(REPO_ROOT)) {
