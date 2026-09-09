@@ -8,10 +8,10 @@ Patina Web Sync 的本地化必须保证：同一条用户可见消息只有一�
 
 ## 支持语言与标识
 
-- 规范 locale 为 `zh-CN`、`en-US` 与 `es`（Español）。
+- 支持语言及显示顺序由 `locales/registry.ts` 定义。
 - 默认 locale 为 `zh-CN`，保持现有产品行为。
 - 旧 storage 值 `en` 必须迁移为 `en-US`；未知值回落并写回 `zh-CN`。
-- WebExtension locale 目录映射为 `zh-CN -> zh_CN`、`en-US -> en`、`es -> es`。
+- WebExtension locale 目录映射由注册表的 `webExtensionLocale` 定义。
 - 新语言必须先加入 schema、registry、review manifest 和自测，再生成目标文件。
 
 ## 唯一事实源

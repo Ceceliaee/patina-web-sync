@@ -13,6 +13,7 @@
 
 ### Added
 
+- 新增俄语 Русский，覆盖设置、弹窗和连接提示；语言顺序统一为中、英、俄、西。Refs [patina#61](https://github.com/Ceceliaee/patina/issues/61)
 - 新增西班牙语 Español，覆盖 Popup、Options、状态、错误及扩展描述。Refs [patina#76](https://github.com/Ceceliaee/patina/issues/76)
 
 - 为简体中文和英语建立唯一语言事实源、确定性目标生成与审核哈希，并覆盖 Popup、Options、manifest、状态、错误和无障碍名称。

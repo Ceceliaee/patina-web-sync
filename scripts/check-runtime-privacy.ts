@@ -246,7 +246,7 @@ assert(vm.runInContext('PatinaI18n.message("zh-CN", "status.connected")', locale
 assert(vm.runInContext('PatinaI18n.message("en-US", "status.connected")', localeContext) === "Synced", "English status must resolve.");
 assert(vm.runInContext('PatinaI18n.normalizeLocale("en")', localeContext) === "en-US", "Legacy en locale must migrate.");
 assert(vm.runInContext('PatinaI18n.normalizeLocale("future")', localeContext) === "zh-CN", "Unknown locales must fail closed to zh-CN.");
-for (const locale of ["zh-CN", "en-US", "es"]) {
+for (const locale of ["zh-CN", "en-US", "ru-RU", "es"]) {
   for (const key of [
     "status.disabled", "status.disconnected", "status.connected", "status.connecting", "status.needsConfig",
     "status.configured", "status.private", "status.saving", "status.error", "error.invalidToken",

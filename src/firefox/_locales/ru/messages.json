@@ -1,0 +1,11 @@
+{
+  "extensionDescription": {
+    "message": "Автоматически передаёт активный сайт из обычного окна в локальное приложение Patina для учёта времени."
+  },
+  "extensionName": {
+    "message": "Patina Web Sync"
+  },
+  "storeShortDescription": {
+    "message": "Передаёт активный сайт из обычного окна в локальное приложение Patina для учёта времени."
+  }
+}

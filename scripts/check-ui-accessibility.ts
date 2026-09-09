@@ -102,6 +102,7 @@ for (const target of TARGETS) {
   const languageButton = document.querySelector<HTMLButtonElement>("#language-button")!;
   const languageMenu = document.querySelector<HTMLElement>("#language-menu")!;
   const languageOptions = [...document.querySelectorAll<HTMLButtonElement>("[data-language-option]")];
+  assert(languageOptions.map((option) => option.dataset.languageOption).join(",") === "zh-CN,en-US,ru-RU,es", `${target} language order must match the product order.`);
   const status = document.querySelector<HTMLElement>("#status")!;
   assert(document.documentElement.lang === "zh-CN", `${target} Options must apply the stored locale.`);
   assert(status.getAttribute("role") === "status" && status.getAttribute("aria-live") === "polite" && status.getAttribute("aria-atomic") === "true", `${target} Options status live-region contract is incomplete.`);
@@ -121,6 +122,18 @@ for (const target of TARGETS) {
   assert(status.textContent?.includes("Sincronizada"), `${target} Spanish must localize the current status.`);
   languageButton.click();
   key(options.dom.window, languageOptions.at(-1)!, "ArrowUp");
+  assert(document.activeElement === languageOptions[2], `${target} Russian must precede Spanish.`);
+  key(options.dom.window, languageOptions[2], "Enter");
+  await flush();
+  assert(document.documentElement.lang === "ru-RU" && options.mock.state.language === "ru-RU", `${target} Russian must render and persist.`);
+  assert(status.textContent?.includes("Передано"), `${target} Russian must localize the stored status.`);
+  assert(options.mock.state.port === "12345" && options.mock.state.token === "test-token", `${target} Russian must preserve connection settings.`);
+  const russianPopup = await loadPage(target, "popup", { ...options.mock.state });
+  assert(russianPopup.dom.window.document.documentElement.lang === "ru-RU", `${target} Popup must restore saved Russian.`);
+  assert(russianPopup.dom.window.document.querySelector("#status-badge")?.textContent === "Передано", `${target} Popup must render Russian status.`);
+  russianPopup.dom.window.close();
+  languageButton.click();
+  key(options.dom.window, languageOptions[2], "ArrowUp");
   key(options.dom.window, languageOptions[1], "Enter");
   await flush();
   assert(document.documentElement.lang === "en-US" && options.mock.state.language === "en-US", `${target} Enter must persist and render canonical en-US.`);
