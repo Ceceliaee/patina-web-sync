@@ -346,6 +346,21 @@ for (const target of ["chromium", "firefox"] as const) {
 }
 console.log("Foreground, revocation, ordering, and bounded-worker timing matrix passed.");
 
+// Desktop anonymity is a storage policy: both clients retain the v1 observation
+// shape and never persist the submitted identity or an inferred privacy mode.
+for (const target of ["chromium", "firefox"] as const) {
+  const tab = { ...regularTab, url: "https://anonymous-rule.test/private-path?q=private-query", title: "Anonymous rule title" };
+  const runtime = await runTarget(target, tab, { body: { enabled: true, ok: true, changed: true } }, { allowTechnicalData: false });
+  const submitted = JSON.parse(runtime.requests[0].body!);
+  assert(submitted.url === tab.url && submitted.title === tab.title, "desktop must receive the current observation to apply its own anonymous rules");
+  assert(!("anonymous" in submitted), "clients must not invent or cache desktop anonymous rules");
+  const persisted = JSON.stringify([runtime.state, runtime.writes]);
+  assert(!persisted.includes(tab.url) && !persisted.includes(tab.title), "successful anonymous ingestion cannot leave page identity in extension storage");
+  tab.url = "https://normal-rule.test/"; tab.title = "Normal page";
+  await vm.runInContext('sendActiveTab("manual")', runtime.context);
+  assert(JSON.parse(runtime.requests[1].body!).url === tab.url, "restored tracking must send the new page rather than replay anonymous identity");
+}
+
 for (const target of ["chromium", "firefox"] as const) {
   const response = { body: { enabled: true, ok: true, changed: false } };
   const retry = await runTarget(target, { ...regularTab }, response);
