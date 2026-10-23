@@ -16,8 +16,14 @@ for (const required of [
 ]) {
   if (!workflow.includes(required)) errors.push(`release.yml is missing required contract: ${required}`);
 }
-for (const forbidden of ["overwrite_files: true", "--clobber", "extension:firefox:sign", "workflow_dispatch:", "gh release delete", "artifact-metadata: write"]) {
+for (const forbidden of ["overwrite_files: true", "--clobber", "extension:firefox:sign", "workflow_dispatch:", "gh release delete", "artifact-metadata: write", "releases/tags/"]) {
   if (workflow.includes(forbidden)) errors.push(`release.yml contains forbidden release behavior: ${forbidden}`);
+}
+for (const draftQuery of [
+  'REMOTE_ASSETS="$(gh release view "$TAG" --repo "$GITHUB_REPOSITORY" --json assets)"',
+  'ACTUAL_NAMES="$(gh release view "$TAG" --repo "$GITHUB_REPOSITORY" --json assets --jq',
+]) {
+  if (!workflow.includes(draftQuery)) errors.push("Release asset queries must support drafts and propagate lookup failures.");
 }
 
 const expected = new Map([["same.zip", "aaa"], ["missing.xpi", "bbb"], ["conflict.zip", "ccc"]]);

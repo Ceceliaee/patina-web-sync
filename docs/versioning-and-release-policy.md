@@ -103,6 +103,8 @@ GitHub Release 正文必须由 `CHANGELOG.md` 对应正式版本节生成。正�
 
 正式附件必须包含 Chromium ZIP、AMO public/listed Firefox XPI 和覆盖两者的 `SHA256SUMS`。工作流为正式二进制生成 GitHub Artifact Attestation，并在上传后重新下载远端资产，验证名称、数量、大小、SHA-256、manifest version 与稳定 Gecko id。
 
+发布前的附件预检和回读必须同时支持草稿与已公开 Release。使用 `gh release view --json assets` 查询附件，不使用只按 tag 查询已发布版本的 `releases/tags/{tag}` 端点。查询失败必须终止流程，不能当作空附件列表继续上传。
+
 ## 发布流程
 
 1. 更新 `CHANGELOG.md`。

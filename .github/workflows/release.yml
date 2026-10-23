@@ -173,7 +173,8 @@ jobs:
             if [[ "$(gh release view "$TAG" --repo "$GITHUB_REPOSITORY" --json isDraft --jq .isDraft)" == "true" ]]; then
               SHOULD_PUBLISH=true
             fi
-            mapfile -t REMOTE_NAMES < <(gh api "repos/${GITHUB_REPOSITORY}/releases/tags/${TAG}" --jq '.assets[].name')
+            REMOTE_ASSETS="$(gh release view "$TAG" --repo "$GITHUB_REPOSITORY" --json assets)"
+            mapfile -t REMOTE_NAMES < <(jq -r '.assets[].name' <<< "$REMOTE_ASSETS")
             for REMOTE_NAME in "${REMOTE_NAMES[@]}"; do
               if ! printf '%s\n' "${EXPECTED[@]}" | grep -Fxq "$REMOTE_NAME"; then
                 echo "unexpected release asset: $REMOTE_NAME" >&2
@@ -258,7 +259,7 @@ jobs:
           EXPECTED_NAMES="SHA256SUMS
           patina-chromium-extension-v${VERSION}.zip
           patina-firefox-extension-v${VERSION}.xpi"
-          ACTUAL_NAMES="$(gh api "repos/${GITHUB_REPOSITORY}/releases/tags/${TAG}" --jq '.assets[].name' | sort)"
+          ACTUAL_NAMES="$(gh release view "$TAG" --repo "$GITHUB_REPOSITORY" --json assets --jq '.assets[].name' | sort)"
           if [[ "$ACTUAL_NAMES" != "$EXPECTED_NAMES" ]]; then
             echo "Unexpected release asset set:" >&2
             printf '%s\n' "$ACTUAL_NAMES" >&2
