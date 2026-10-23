@@ -114,8 +114,8 @@ It does not own the Patina desktop runtime, SQLite storage, backup/restore, Hist
 
 ### Requirements
 
-- [Node.js](https://nodejs.org/) 24.18.0
-- npm 11.16.0
+- [Node.js](https://nodejs.org/) 24.21.0
+- npm 11.19.0
 
 ### Install Dependencies
 
