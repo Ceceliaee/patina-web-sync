@@ -138,4 +138,7 @@ npm run release:check
 
 ### 版本化提交记录
 
-版本日期、包哈希、提交标识与最终审核结果放在 `docs/store-releases/<version>.md`，不在本长期流程文档中重复维护。首个三商店公开版本见 [`0.2.0` 商店版本记录](./store-releases/0.2.0.md)。
+版本日期、包哈希、提交标识与最终审核结果放在 `docs/store-releases/<version>.md`，不在本长期流程文档中重复维护。
+
+- [`0.2.1` 商店版本记录](./store-releases/0.2.1.md)
+- [`0.2.0` 商店版本记录](./store-releases/0.2.0.md)：首个三商店公开版本。
