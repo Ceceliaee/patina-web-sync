@@ -128,7 +128,7 @@ GitHub Release 正文必须由 `CHANGELOG.md` 对应正式版本节生成。正�
 4. Tag 自动工作流已经发布完整的 Patina Web Sync GitHub Release，tag、Release 标题与附件版本一致。
 5. Firefox Release 附件来自 AMO 的同版本公开 listed XPI，并已校验 AMO SHA-256、manifest version 与稳定 Gecko id。
 6. GitHub Release 的 Chromium ZIP 与 Firefox XPI 已由 `SHA256SUMS` 和 artifact attestation 绑定，并通过发布后远端回读；同名资产不存在哈希冲突或覆盖历史。
-7. 若版本改变 Web Activity 协议，Patina 接收端兼容必须先落地，两仓的 `docs/web-activity-protocol.md` 必须保持一致。
+7. 若版本改变 Web Activity 协议，Patina 接收端兼容必须先落地，两仓的 [Web Sync 本机协议](web-sync-protocol.md) 必须保持一致。
 
 完成签收不绑定两个项目的版本号，也不要求 Patina 与 Patina Web Sync 同日发布。Patina Release 不携带扩展附件；Patina 只消费稳定商店入口、扩展 Release 和双方已对齐的本机协议。普通扩展发布不得依赖尚未发布的 Patina 接收端行为。
 

@@ -28,7 +28,7 @@ Browser extension -> local HTTP POST -> Patina desktop app -> local Patina data 
 - `docs/localization.md`：语言事实源、生成、审核和语言无关状态规则。
 - `docs/store-submission.md`：浏览器商店上架准备参考。
 - `docs/versioning-and-release-policy.md`：扩展版本和发布规则。
-- `docs/web-activity-protocol.md`：与 Patina 共享的本机协议。
+- [Web Sync 本机协议](web-sync-protocol.md)：与 Patina 共享的本机协议。
 
 ## 运行流程
 
@@ -59,7 +59,7 @@ Firefox 专属行为必须保留稳定的 `browser_specific_settings.gecko.id`�
 
 ## 协议边界
 
-协议契约位于 [`web-activity-protocol.md`](./web-activity-protocol.md)。
+协议契约位于 [`web-sync-protocol.md`](./web-sync-protocol.md)。
 
 Patina Web Sync 只有在确认 Patina 能安全忽略或接收新字段后，才能添加客户端字段。扩展开始依赖新版 Patina 前，Patina 应先能接收旧客户端和新客户端 payload。
 

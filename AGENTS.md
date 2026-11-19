@@ -12,7 +12,7 @@ These instructions apply to the whole repository unless the user gives an explic
 - Extension UI work must follow `docs/quiet-pro-component-guidelines.md`.
 - User-visible copy, locale generation, and language-neutral state must follow `docs/localization.md`.
 - Versioning, packaging, AMO signing, and release work must follow `docs/versioning-and-release-policy.md`.
-- Patina bridge compatibility must follow `docs/web-activity-protocol.md`.
+- Patina bridge compatibility must follow [Web Sync protocol](docs/web-sync-protocol.md).
 - Cross-repository release acceptance with Patina must follow the acceptance contract in `docs/versioning-and-release-policy.md`.
 - Treat top-level long-lived docs under `docs/` as the current source of truth.
 
@@ -48,7 +48,7 @@ These instructions apply to the whole repository unless the user gives an explic
 - Keep Firefox `browser_specific_settings.gecko.id` stable as `web-sync@patina.local`.
 - Firefox manifest versions must only move forward for the stable Gecko id after AMO signing has happened.
 - Chromium may use Chromium-specific favicon APIs; Firefox must not request Chromium-only permissions.
-- If a protocol shape changes, keep Patina receiver compatibility first and update `docs/web-activity-protocol.md`.
+- If a protocol shape changes, keep Patina receiver compatibility first and update [Web Sync protocol](docs/web-sync-protocol.md).
 
 ## Version And Release Rules
 

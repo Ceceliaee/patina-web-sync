@@ -13,7 +13,7 @@
 - 中英文 listing、字段对照、权限理由和数据分类：根目录 `STORE_LISTING.md`。
 - 共用隐私政策：根目录 `PRIVACY.md`。
 - 审核员步骤：`docs/store-reviewer-test-instructions.md`。
-- 运行时 payload：`docs/web-activity-protocol.md` 和两个目标的 `background.js`。
+- 运行时 payload：[Web Sync 本机协议](web-sync-protocol.md) 和两个目标的 `background.js`。
 - 上传素材：`store-assets/<store>/`；`store-assets/source/` 不直接上传。
 - 版本与签名规则：`docs/versioning-and-release-policy.md`。
 
